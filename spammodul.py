@@ -1,46 +1,69 @@
+# meta developer: @yourusername
+
 from .. import loader, utils
 import asyncio
 
-class SpamTestMod(loader.Module):
-    """Спам сообщений в чат"""
 
-    strings = {"name": "Spammy"}  # ← НАЗВАНИЕ МОДУЛЯ
+class SpammyProMod(loader.Module):
+    """Продвинутый модуль для повторения сообщений"""
+
+    strings = {
+        "name": "Spammy Pro",
+        "already_running": "⚠️ Спам уже выполняется! Останови через .spammyoff",
+        "usage": "Использование: .spammy <кол-во> <текст>",
+        "starting": "🚀 Запускаю спам на {count} сообщений...",
+        "stopped": "🛑 Спам остановлен!",
+        "finished": "✔️ Спам завершён!"
+    }
 
     def __init__(self):
-        self.spam_running = False  # флаг, идёт ли спам
+        self.running = False  # флаг, идёт ли спам
 
     @loader.command()
-    async def spammy(self, m):
-        """.spammy <count> <text> — начать повтор"""
-        if self.spam_running:
-            return await m.edit("⚠️ Спам уже запущен! Останови его через .spammyoff")
+    async def spammy(self, message):
+        """
+        .spammy <кол-во> <текст>
+        — запускает повтор сообщения
+        """
+        if self.running:
+            return await message.edit(self.strings["already_running"])
 
-        args = utils.get_args_raw(m).split(maxsplit=1)
+        args = utils.get_args_raw(message).split(maxsplit=1)
         if len(args) < 2:
-            return await m.edit("Использование: .spammy 20 Привет")
+            return await message.edit(self.strings["usage"])
 
-        count = int(args[0])
+        count = args[0]
         text = args[1]
 
-        self.spam_running = True
-        await m.edit(f"🚀 Запускаю повтор {count} раз...")
+        if not count.isdigit():
+            return await message.edit("❌ Количество должно быть числом.")
 
-        for i in range(count):
-            if not self.spam_running:
-                await m.client.send_message(m.chat_id, "⛔ Спам остановлен!")
-                return
+        count = int(count)
+        self.running = True
 
-            await m.client.send_message(m.chat_id, text)
-            await asyncio.sleep(0.05)  # задержка, чтобы избежать FloodWait
+        await message.edit(self.strings["starting"].format(count=count))
 
-        self.spam_running = False
-        await m.client.send_message(m.chat_id, "✔️ Спам завершён!")
+        for _ in range(count):
+            if not self.running:
+                return await message.client.send_message(
+                    message.chat_id,
+                    self.strings["stopped"]
+                )
+
+            await message.client.send_message(message.chat_id, text)
+            await asyncio.sleep(0.05)  # минимальная пауза, чтобы избежать флада
+
+        self.running = False
+        await message.client.send_message(message.chat_id, self.strings["finished"])
 
     @loader.command()
-    async def spammyoff(self, m):
-        """.spammyoff — остановить спам"""
-        if not self.spam_running:
-            return await m.edit("❌ Спам сейчас не запущен.")
+    async def spammyoff(self, message):
+        """
+        .spammyoff
+        — останавливает спам
+        """
+        if not self.running:
+            return await message.edit("❌ Спам сейчас не запущен.")
 
-        self.spam_running = False
-        await m.edit("🛑 Останавливаю спам...")
+        self.running = False
+        await message.edit(self.strings["stopped"])
