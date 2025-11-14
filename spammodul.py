@@ -2,7 +2,9 @@ from .. import loader, utils
 import asyncio
 
 class SpamTestMod(loader.Module):
-    """Тестовый повтор сообщений"""
+    """Спам сообщений в чат"""
+
+strings = {"name": "Spammy"}
 
     def __init__(self):
         self.spam_running = False  # флаг, идёт ли спам
