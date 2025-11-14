@@ -2,24 +2,24 @@ from .. import loader, utils
 import asyncio
 import random
 
-class DigitalRainMod(loader.Module):
-    """Цифровой дождь / эффект глитча"""
+class InfiniteDigiRainMod(loader.Module):
+    """Бесконечный цифровой дождь / эффект глитча"""
 
     def __init__(self):
         self.running = False
 
     @loader.command()
     async def digirain(self, m):
-        """.digirain — начать цифровой поток"""
+        """.digirain — начать бесконечный цифровой поток"""
         if self.running:
             return await m.edit("⚠️ Поток уже запущен!")
 
         self.running = True
-        width = 20  # ширина “экрана”
-        height = 10  # высота “экрана”
+        width = 20  # ширина экрана
+        height = 10  # высота экрана
         symbols = "0123456789ABCDEF!@#$%^&*()"
 
-        await m.edit("💻 Запускаю цифровой дождь...")
+        await m.edit("💻 Запускаю бесконечный цифровой дождь...")
 
         # текущие строки
         screen = [" " * width for _ in range(height)]
@@ -27,10 +27,10 @@ class DigitalRainMod(loader.Module):
         while self.running:
             # сдвигаем экран вниз
             screen.pop()
-            # новая строка
+            # новая строка с случайными символами
             new_line = "".join(random.choice(symbols) for _ in range(width))
             screen.insert(0, new_line)
-            # собираем текст для отправки
+            # собираем текст
             text = "\n".join(screen)
             await m.edit(text)
             await asyncio.sleep(0.15)  # скорость падения
