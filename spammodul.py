@@ -4,7 +4,7 @@ import asyncio
 class SpamTestMod(loader.Module):
     """Спам сообщений в чат"""
 
-strings = {"name": "Spammy"}
+    strings = {"name": "Spammy"}  # ← НАЗВАНИЕ МОДУЛЯ
 
     def __init__(self):
         self.spam_running = False  # флаг, идёт ли спам
@@ -31,7 +31,7 @@ strings = {"name": "Spammy"}
                 return
 
             await m.client.send_message(m.chat_id, text)
-            await asyncio.sleep(0.05)  # минимум, чтобы не словить FloodWait
+            await asyncio.sleep(0.05)  # задержка, чтобы избежать FloodWait
 
         self.spam_running = False
         await m.client.send_message(m.chat_id, "✔️ Спам завершён!")
