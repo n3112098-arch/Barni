@@ -7,6 +7,7 @@ class AdvancedRapMod(loader.Module):
 
     @loader.command()
     async def rap(self, message):
+      strings = {"name": "Rapper"}
         """.rap <тема> — генерирует короткий рэп с рифмой и битом"""
         args = utils.get_args_raw(message)
         if not args:
