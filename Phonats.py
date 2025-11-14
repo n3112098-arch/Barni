@@ -31,9 +31,6 @@ class StableDigiRainMod(loader.Module):
                 screen.insert(0, new_line)
                 text = "\n".join(screen)
 
-                if previous_msg:
-                    await previous_msg.delete()  # удаляем предыдущий поток
-
                 previous_msg = await m.client.send_message(
                     m.chat_id, text, parse_mode=None
                 )
