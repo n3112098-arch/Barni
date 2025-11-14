@@ -2,38 +2,46 @@ from .. import loader, utils
 import asyncio
 import random
 
-class InfiniteDigiRainMod(loader.Module):
-    """Бесконечный цифровой дождь / эффект глитча"""
+class StableDigiRainMod(loader.Module):
+    """Бесконечный цифровой дождь / эффект глитча, стабильная версия"""
 
     def __init__(self):
         self.running = False
 
     @loader.command()
     async def digirain(self, m):
-        """.digirain — начать бесконечный цифровой поток"""
+        """.digirain — начать стабильный цифровой поток"""
         if self.running:
             return await m.edit("⚠️ Поток уже запущен!")
 
         self.running = True
-        width = 20  # ширина экрана
-        height = 10  # высота экрана
+        width = 12  # ширина "экрана"
+        height = 8  # высота "экрана"
         symbols = "0123456789ABCDEF!@#$%^&*()"
 
-        await m.edit("💻 Запускаю бесконечный цифровой дождь...")
+        await m.edit("💻 Запускаю стабильный цифровой дождь...")
 
-        # текущие строки
         screen = [" " * width for _ in range(height)]
+        previous_msg = None
 
-        while self.running:
-            # сдвигаем экран вниз
-            screen.pop()
-            # новая строка с случайными символами
-            new_line = "".join(random.choice(symbols) for _ in range(width))
-            screen.insert(0, new_line)
-            # собираем текст
-            text = "\n".join(screen)
-            await m.edit(text)
-            await asyncio.sleep(0.15)  # скорость падения
+        try:
+            while self.running:
+                screen.pop()
+                new_line = "".join(random.choice(symbols) for _ in range(width))
+                screen.insert(0, new_line)
+                text = "\n".join(screen)
+
+                if previous_msg:
+                    await previous_msg.delete()  # удаляем предыдущий поток
+
+                previous_msg = await m.client.send_message(
+                    m.chat_id, text, parse_mode=None
+                )
+
+                await asyncio.sleep(0.15)  # скорость падения
+
+        except Exception as e:
+            await m.client.send_message(m.chat_id, f"Ошибка: {e}")
 
     @loader.command()
     async def digistop(self, m):
