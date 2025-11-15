@@ -1,4 +1,3 @@
-# meta developer: @yourusername
 
 from .. import loader, utils
 import asyncio
