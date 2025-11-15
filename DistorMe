@@ -1,0 +1,115 @@
+# meta developer: @yourusername
+
+from .. import loader, utils
+import asyncio
+import io
+from PIL import Image
+import math
+
+class DistortMeMod(loader.Module):
+    """Сужение фото по центру — DistortMe"""
+    strings = {"name": "DistortMe"}
+
+    @loader.command()
+    async def we(self, message):
+        """
+        .we [strength]
+        Ответь на фото командой: .we 0.5
+        strength 0.1..0.9 (по умолчанию 0.5)
+        """
+        args = utils.get_args_raw(message).strip()
+        try:
+            strength = float(args) if args else 0.5
+        except:
+            strength = 0.5
+
+        # clamp
+        if strength <= 0: strength = 0.1
+        if strength > 0.9: strength = 0.9
+
+        reply = await message.get_reply_message()
+        if not reply or not getattr(reply, "media", None):
+            return await message.edit("❗ Ответь на фотографию командой `.we`")
+
+        await message.edit("⏳ Скачиваю изображение...")
+
+        bio = io.BytesIO()
+        try:
+            await message.client.download_media(reply, file=bio)
+        except Exception:
+            try:
+                # fallback: use reply.media
+                await message.client.download_media(reply.media, file=bio)
+            except Exception as e:
+                return await message.edit(f"❌ Ошибка скачивания: {e}")
+
+        bio.seek(0)
+        try:
+            img = Image.open(bio).convert("RGBA")
+        except Exception as e:
+            return await message.edit(f"❌ Ошибка открытия изображения: {e}")
+
+        # ограничение размера для стабильной работы
+        max_side = 1024
+        w, h = img.size
+        scale = 1.0
+        if max(w, h) > max_side:
+            scale = max_side / max(w, h)
+            new_size = (int(w * scale), int(h * scale))
+            img = img.resize(new_size, Image.LANCZOS)
+            w, h = img.size
+
+        await message.edit("✨ Применяю эффект сужения...")
+
+        src = img
+        dst = Image.new("RGBA", (w, h), (0,0,0,0))
+        src_px = src.load()
+        dst_px = dst.load()
+
+        cx = (w - 1) / 2.0
+        cy = (h - 1) / 2.0
+        max_r = math.hypot(cx, cy)
+
+        # strength: 0.1..0.9 controls how strong the pull towards center is
+        k = strength
+
+        # inverse mapping: for each target pixel (x,y) compute source coord
+        for y in range(h):
+            dy = y - cy
+            for x in range(w):
+                dx = x - cx
+                r = math.hypot(dx, dy)
+                if r == 0:
+                    sx, sy = cx, cy
+                else:
+                    normalized = r / max_r  # 0..1
+                    # pull factor: closer to center => less movement, far => stronger pull
+                    factor = 1.0 - k * (normalized)  # 1..(1-k)
+                    # keep factor >= 0.2 to avoid folding
+                    if factor < 0.2:
+                        factor = 0.2
+                    sx = cx + dx * factor
+                    sy = cy + dy * factor
+
+                # nearest neighbor sampling (fast). Could be improved to bilinear.
+                sx_i = int(round(sx))
+                sy_i = int(round(sy))
+                if sx_i < 0: sx_i = 0
+                if sx_i >= w: sx_i = w - 1
+                if sy_i < 0: sy_i = 0
+                if sy_i >= h: sy_i = h - 1
+
+                dst_px[x, y] = src_px[sx_i, sy_i]
+
+        # Подготовить файл для отправки
+        out_bio = io.BytesIO()
+        out_bio.name = "distort.png"
+        dst.save(out_bio, "PNG")
+        out_bio.seek(0)
+
+        await message.edit("🚀 Отправляю результат...")
+        try:
+            await message.client.send_file(message.chat_id, out_bio, caption="📸 DistortMe — центрировано сжато")
+            await message.delete()
+        except Exception as e:
+            await message.edit(f"❌ Ошибка отправки: {e}")
