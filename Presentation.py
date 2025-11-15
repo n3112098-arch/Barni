@@ -14,75 +14,72 @@ class PresMakerMod(loader.Module):
         """.pres <slides 1-10> <topic> — создать презентацию"""
         args = utils.get_args_raw(m).split(maxsplit=1)
         if len(args) < 2:
-            return await m.edit("Использование: .pres 5 История Украины")
+            return await m.edit("Использование: .pres 5 История")
 
+        # Количество
         try:
             slides = int(args[0])
         except:
             return await m.edit("Первый аргумент должен быть числом.")
 
-        if slides < 1 or slides > 10:
-            return await m.edit("Количество слайдов: от 1 до 10.")
+        if not 1 <= slides <= 10:
+            return await m.edit("Количество должно быть от 1 до 10.")
 
+        # Тема
         topic = args[1]
 
         await m.edit(f"📘 Создаю презентацию на тему: **{topic}**…")
 
-        images = []
+        files = []
         for i in range(slides):
-            img = self.generate_slide(topic, i + 1)
-            images.append(img)
+            img = self.make_slide(topic, i+1)
+            files.append(img)
 
         await m.edit("📤 Отправляю слайды…")
 
-        for png in images:
-            await m.client.send_file(m.chat_id, png)
+        for file in files:
+            await m.client.send_file(m.chat_id, file)
 
         await m.respond("✔️ Презентация готова!")
 
-    # ---------- Генерация одного слайда ----------
-    def generate_slide(self, topic, number):
-        width, height = 1280, 720
-        img = Image.new("RGB", (width, height), "white")
-        draw = ImageDraw.Draw(img)
+    # Генерируем PNG-слайд
+    def make_slide(self, topic, num):
+        W, H = 1280, 720
+        img = Image.new("RGB", (W, H), "white")
+        drw = ImageDraw.Draw(img)
+
+        # Встроенный шрифт (работает на всех системах)
+        font_big = ImageFont.load_default()
+        font_mid = ImageFont.load_default()
+        font_small = ImageFont.load_default()
 
         # Верхний синий бар
-        draw.rectangle((0, 0, width, 120), fill=(25, 85, 165))
+        drw.rectangle([0, 0, W, 120], fill=(25, 85, 165))
 
-        # Шрифты
-        try:
-            title_font = ImageFont.truetype("arial.ttf", 52)
-            text_font = ImageFont.truetype("arial.ttf", 36)
-        except:
-            title_font = ImageFont.load_default()
-            text_font = ImageFont.load_default()
-
-        # Заголовок
-        draw.text((40, 25), topic, fill="white", font=title_font)
+        # Заголовок в синей полосе
+        drw.text((40, 40), topic, fill="white", font=font_big)
 
         # Подзаголовок
-        draw.text((40, 150), f"Слайд {number}", fill="black", font=title_font)
+        drw.text((40, 160), f"Слайд {num}", fill="black", font=font_big)
 
-        # Автоматически генерируемый текст по теме
-        body = self.generate_text(topic)
-        draw.text((40, 260), body, fill="black", font=text_font)
+        # Сгенерированный текст
+        body = self.gen(topic)
+        drw.text((40, 260), body, fill="black", font=font_mid)
 
-        # Сохранение в PNG
+        # сохраняем в память
         bio = io.BytesIO()
-        bio.name = f"slide_{number}.png"
+        bio.name = f"slide_{num}.png"
         img.save(bio, "PNG")
         bio.seek(0)
-
         return bio
 
-    # ---------- Генератор текста (авто-подпункты) ----------
-    def generate_text(self, topic):
+    # Генератор текста по теме
+    def gen(self, topic):
         templates = [
-            f"Основные аспекты по теме: {topic}.",
-            f"Ключевые моменты и важные факты о {topic}.",
-            f"Обзор главных идей, связанных с темой: {topic}.",
-            f"Что важно знать о {topic}.",
-            f"Краткое описание ключевых элементов {topic}.",
-            f"Фундаментальные особенности темы {topic}."
+            f"Основные сведения по теме: {topic}.",
+            f"Краткое описание ключевых идей {topic}.",
+            f"Факты и важные элементы темы: {topic}.",
+            f"Что нужно знать о {topic}.",
+            f"Введение в концепцию {topic}.",
         ]
         return random.choice(templates)
