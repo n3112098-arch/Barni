@@ -1,7 +1,7 @@
 from .. import loader
 import random
 
-class Compliments(loader.Module):
+class ComplimentsMOD(loader.Module):
     """Комплименты для твоей девушки"""
 
     strings = {"name": "Compliments"}
