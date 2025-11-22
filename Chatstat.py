@@ -4,7 +4,7 @@ import datetime
 from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument
 
 class ChatStatsMod(loader.Module):
-    """Упрощённая статистика чата: фото, гиф, стикеры, медиа, сообщения"""
+    """статистика чата: фото, гиф, стикеры, медиа, сообщения"""
 
     strings = {"name": "ChatStats"}
 
@@ -17,7 +17,7 @@ class ChatStatsMod(loader.Module):
 
     @loader.command()
     async def chatstat(self, m):
-        """Показать статистику чата (упрощённая версия)"""
+        """Показать статистику чата"""
         await m.edit("📊 Собираю статистику...")
 
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -73,16 +73,16 @@ class ChatStatsMod(loader.Module):
                         stats["file"] += 1
 
         text = (
-            f"📊 **Статистика чата**\n\n"
-            f"📨 Сообщений: **{stats['total']}**\n"
-            f"🕓 За 24ч: **{stats['last24h']}**\n"
-            f"🗓 За 7 дней: **{stats['last7d']}**\n\n"
-            f"📷 Фото: **{stats['photo']}**\n"
-            f"🌀 GIF: **{stats['gif']}**\n"
+            f"📊 Статистика чата\n\n"
+            f"📨 Сообщений: {stats['total']}\n"
+            f"🕓 За 24ч: {stats['last24h']}\n"
+            f"🗓 За 7 дней: {stats['last7d']}\n\n"
+            f"📷 Фото: {stats['photo']}\n"
+            f"🌀 GIF: {stats['gif']}\n"
             f"🤡 Стикеры: **{stats['sticker']}**\n"
-            f"🎞 Видео: **{stats['video']}**\n"
-            f"🎧 Голосовые: **{stats['audio']}**\n"
-            f"📁 Файлы: **{stats['file']}**"
+            f"🎞 Видео: {stats['video']}\n"
+            f"🎧 Голосовые: {stats['audio']}\n"
+            f"📁 Файлы: {stats['file']}"
         )
 
         await m.edit(text)
