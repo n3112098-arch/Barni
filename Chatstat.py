@@ -34,14 +34,12 @@ class ChatStatsMod(loader.Module):
             "last7d": 0,
         }
 
-        # читаем последние 3000 сообщений
-        async for msg in m.client.iter_messages(m.chat_id, limit=20000):
+        async for msg in m.client.iter_messages(m.chat_id, limit=10000):
             if not msg:
                 continue
 
             stats["total"] += 1
 
-            # дата
             msg_dt = self._normalize_dt(msg.date)
 
             if msg_dt:
