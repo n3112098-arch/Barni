@@ -14,6 +14,10 @@ class ChatStatsMod(loader.Module):
         await m.edit("📊 Собираю статистику чата...")
 
         chat = await m.client.get_entity(m.chat_id)
+
+        # --- ВРЕМЯ С УЧЁТОМ TZ ---
+        now = datetime.datetime.now(datetime.timezone.utc)
+
         stats = {
             "total": 0,
             "photo": 0,
@@ -27,22 +31,25 @@ class ChatStatsMod(loader.Module):
             "last7d": 0,
         }
 
-        now = datetime.datetime.utcnow()
         async for msg in m.client.iter_messages(m.chat_id, limit=5000):
+            if not msg:
+                continue
+
             stats["total"] += 1
 
-            # ----- по пользователям -----
+            # ----- По пользователям -----
             uid = msg.sender_id
             if uid:
                 stats["per_user"][uid] = stats["per_user"].get(uid, 0) + 1
 
-            # ----- интервалы -----
-            if msg.date > now - datetime.timedelta(days=1):
-                stats["last24h"] += 1
-            if msg.date > now - datetime.timedelta(days=7):
-                stats["last7d"] += 1
+            # ----- Интервалы -----
+            if msg.date and msg.date.tzinfo:
+                if msg.date > now - datetime.timedelta(days=1):
+                    stats["last24h"] += 1
+                if msg.date > now - datetime.timedelta(days=7):
+                    stats["last7d"] += 1
 
-            # ----- медиа -----
+            # ----- Медиа -----
             if msg.media:
                 if isinstance(msg.media, MessageMediaPhoto):
                     stats["photo"] += 1
