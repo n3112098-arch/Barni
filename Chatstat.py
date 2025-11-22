@@ -35,7 +35,7 @@ class ChatStatsMod(loader.Module):
         }
 
         # читаем последние 3000 сообщений
-        async for msg in m.client.iter_messages(m.chat_id, limit=3000):
+        async for msg in m.client.iter_messages(m.chat_id, limit=20000):
             if not msg:
                 continue
 
@@ -79,7 +79,7 @@ class ChatStatsMod(loader.Module):
             f"🗓 За 7 дней: {stats['last7d']}\n\n"
             f"📷 Фото: {stats['photo']}\n"
             f"🌀 GIF: {stats['gif']}\n"
-            f"🤡 Стикеры: **{stats['sticker']}**\n"
+            f"🤡 Стикеры: {stats['sticker']}\n"
             f"🎞 Видео: {stats['video']}\n"
             f"🎧 Голосовые: {stats['audio']}\n"
             f"📁 Файлы: {stats['file']}"
