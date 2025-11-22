@@ -1,34 +1,36 @@
+# meta developer: @B_mods
 
 from .. import loader, utils
 import requests
-from telethon.tl.types import MessageMediaPhoto
 
 class PhotoMagic(loader.Module):
-    """Генерация AI-фото по описанию"""
+    """Генерация AI-фото по описанию
+    
+    Команды:
+    .generate <описание> — создать AI-изображение
+    """
     strings = {"name": "PhotoMagic"}
 
-    async def gen(self, message):
-        """Создать изображение: .gen описание"""
+    @loader.command()
+    async def generate(self, message):
+        """Создать AI-изображение по описанию"""
         prompt = utils.get_args_raw(message)
         if not prompt:
             return await message.edit("🔮 Напиши описание: `.generate красивая девушка у моря`")
 
         await message.edit("🎨 Генерирую изображение...")
 
-        # URL Pollinations (без API ключа)
         url = f"https://image.pollinations.ai/prompt/{prompt.replace(' ', '%20')}"
 
         try:
             image = requests.get(url, timeout=30).content
         except Exception:
-            return await message.edit("⚠️ Ошибка запроса к Pollinations.")
+            return await message.edit("⚠️ Ошибка: не удалось получить изображение.")
 
-        # сохраняем как файл
         file = "generated.png"
         with open(file, "wb") as f:
             f.write(image)
 
-        # отправляем фото
         await message.client.send_file(
             message.chat_id,
             file,
