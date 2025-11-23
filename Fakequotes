@@ -1,34 +1,21 @@
 # meta developer: @B_Mods
 from .. import loader, utils
-import asyncio
 from PIL import Image, ImageDraw, ImageFont
-import base64, io
+import io, asyncio
 
 
-# ====== ВСТРОЕННЫЙ РАБОЧИЙ ШРИФТ (поддерживает русский) ======
-FONT_DATA = b"""
-AAEAAAASAQAABAAgR0RFRrRCsIIAAjWsAAACYkdQT1P/////AAO0AAAAFGNtYXAA
-AAAAAAADsAAAACBnbHlm6rxeVQAAAxgAAA5laGVhZP////8AAAMQAAAANmhoZWEE
-/////wAAAyQAAAAkaG10eP////8AAAOsAAAAGGxvY2EAAAAAAAADqAAAAAxtYXhw
-AAAAgAAABOQAAAAgbmFtZf////8AAATYAAACaHBvc3T/////AAAFBAAAAChwcmVw
-AAAAAAAFBAAAACR2dW5pAAABAAAAAQAAAAMAAAAA/wABAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAA==
-"""
-
-font_file = io.BytesIO(base64.b64decode(FONT_DATA))
-FONT = ImageFont.truetype(font_file, size=38)
-SMALLFONT = ImageFont.truetype(font_file, size=30)
-
-
-# =============== МОДУЛЬ ===============
 @loader.tds
 class FakeQuotes(loader.Module):
     """Создание фейковых цитат в виде картинки"""
     strings = {"name": "FakeQuotes"}
 
+    def __init__(self):
+        # Путь к шрифту
+        font_path = "modules/fonts/DejaVuSans.ttf"
+        self.font = ImageFont.truetype(font_path, 38)
+        self.smallfont = ImageFont.truetype(font_path, 30)
+
     async def make_sticker(self, m, text: str, name: str, avatar_bytes=None):
-        # холст
         img = Image.new("RGBA", (900, 600), (255, 255, 255, 255))
         draw = ImageDraw.Draw(img)
 
@@ -42,39 +29,37 @@ class FakeQuotes(loader.Module):
                 pass
 
         # имя
-        draw.text((220, 70), name, font=FONT, fill=(30, 30, 30))
+        draw.text((220, 70), name, font=self.font, fill=(30, 30, 30))
 
-        # текст цитаты
+        # перенос текста
         lines = []
         words = text.split(" ")
         line = ""
-
         for w in words:
             test = line + w + " "
-            if draw.textlength(test, font=SMALLFONT) < 620:
+            if draw.textlength(test, font=self.smallfont) < 620:
                 line = test
             else:
                 lines.append(line)
                 line = w + " "
         lines.append(line)
 
+        # текст
         y = 200
         for l in lines:
-            draw.text((60, y), l, font=SMALLFONT, fill=(20, 20, 20))
+            draw.text((60, y), l, font=self.smallfont, fill=(20, 20, 20))
             y += 60
 
-        # финальная подпись
-        draw.text((60, 520), f"— {name}", font=SMALLFONT, fill=(60, 60, 60))
+        # подпись
+        draw.text((60, 520), f"— {name}", font=self.smallfont, fill=(60, 60, 60))
 
         # отправка
         bio = io.BytesIO()
         bio.name = "quote.png"
         img.save(bio, "PNG")
         bio.seek(0)
-
         await m.reply(file=bio)
 
-    # ======= .fquotes <юзер> <текст> =======
     @loader.command()
     async def fquotes(self, m):
         """.fquotes <юзер> <текст> — создать фейковую цитату"""
@@ -90,13 +75,11 @@ class FakeQuotes(loader.Module):
         except:
             return await m.edit("❌ Не удалось получить пользователя")
 
-        # получаем аву
         photo = await m.client.download_profile_photo(ent, bytes)
         name = ent.first_name or "User"
 
         await self.make_sticker(m, text, name, photo)
 
-    # ======= .fquo (ответ на сообщение) =======
     @loader.command()
     async def fquo(self, m):
         """.fquo <текст> — создать цитату в ответ на сообщение"""
@@ -105,7 +88,7 @@ class FakeQuotes(loader.Module):
 
         reply = await m.get_reply_message()
         if not reply:
-            return await m.edit("❌ Ошибка с ответом")
+            return await m.edit("❌ Ошибка")
 
         name = reply.sender.first_name or "User"
         photo = await m.client.download_profile_photo(reply.sender, bytes)
