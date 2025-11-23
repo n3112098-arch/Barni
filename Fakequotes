@@ -1,94 +1,117 @@
 # meta developer: @B_Mods
 from .. import loader, utils
-import io
-from PIL import Image, ImageDraw, ImageFont, ImageOps
-import requests
+import asyncio
+from PIL import Image, ImageDraw, ImageFont
+import base64, io
 
-class FakeQuotesSticker(loader.Module):
-    """Создание фейковых цитат в виде стикеров"""
-    strings = {"name": "FakeQuotesSticker"}
 
-    @loader.command()
-    async def fquotes(self, m):
-        """Создать цитату вручную: <юзер> <текст>"""
-        args = utils.get_args_raw(m)
-        if not args:
-            return await m.edit("Использование:\n.fquotes <имя> <текст>")
+# ====== ВСТРОЕННЫЙ РАБОЧИЙ ШРИФТ (поддерживает русский) ======
+FONT_DATA = b"""
+AAEAAAASAQAABAAgR0RFRrRCsIIAAjWsAAACYkdQT1P/////AAO0AAAAFGNtYXAA
+AAAAAAADsAAAACBnbHlm6rxeVQAAAxgAAA5laGVhZP////8AAAMQAAAANmhoZWEE
+/////wAAAyQAAAAkaG10eP////8AAAOsAAAAGGxvY2EAAAAAAAADqAAAAAxtYXhw
+AAAAgAAABOQAAAAgbmFtZf////8AAATYAAACaHBvc3T/////AAAFBAAAAChwcmVw
+AAAAAAAFBAAAACR2dW5pAAABAAAAAQAAAAMAAAAA/wABAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAA==
+"""
 
-        parts = args.split(maxsplit=1)
-        if len(parts) < 2:
-            return await m.edit("❗ Нужно: .fquotes <имя> <текст>")
+font_file = io.BytesIO(base64.b64decode(FONT_DATA))
+FONT = ImageFont.truetype(font_file, size=38)
+SMALLFONT = ImageFont.truetype(font_file, size=30)
 
-        name, text = parts[0], parts[1]
-        await self.make_sticker(m, text, name, None)
 
-    @loader.command()
-    async def fquo(self, m):
-        """Создать цитату по reply: <текст>"""
-        reply = await m.get_reply_message()
-        if not reply or not reply.sender:
-            return await m.edit("❗ Ответь на сообщение с пользователем!")
+# =============== МОДУЛЬ ===============
+@loader.tds
+class FakeQuotes(loader.Module):
+    """Создание фейковых цитат в виде картинки"""
+    strings = {"name": "FakeQuotes"}
 
-        name = reply.sender.first_name
-        text = utils.get_args_raw(m)
-        if not text:
-            return await m.edit("Использование:\nОтветь на сообщение → .fquo <текст>")
-
-        # Получаем аватарку пользователя
-        photo = None
-        if reply.sender.photo:
-            try:
-                photo = await m.client.download_profile_photo(reply.sender)
-            except:
-                photo = None
-
-        await self.make_sticker(m, text, name, photo)
-
-    async def make_sticker(self, m, text, name, avatar_path):
-        # Размер стикера
-        size = 512
-        margin = 30
-
-        # Фон и тень
-        img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+    async def make_sticker(self, m, text: str, name: str, avatar_bytes=None):
+        # холст
+        img = Image.new("RGBA", (900, 600), (255, 255, 255, 255))
         draw = ImageDraw.Draw(img)
 
-        card = Image.new("RGBA", (size-40, size-40), (255, 255, 255, 255))
-        shadow = Image.new("RGBA", card.size, (0,0,0,100))
-        img.paste(shadow, (20, 20), shadow)
-        img.paste(card, (20, 20))
-
-        # Шрифт
-        try:
-            font = ImageFont.truetype("DejaVuSans.ttf", 28)
-            smallfont = ImageFont.truetype("DejaVuSans.ttf", 22)
-        except:
-            font = ImageFont.load_default()
-            smallfont = ImageFont.load_default()
-
-        # Рисуем аватар, если есть
-        if avatar_path:
+        # аватар
+        if avatar_bytes:
             try:
-                avatar = Image.open(avatar_path).convert("RGBA")
-                avatar = avatar.resize((80, 80))
-                img.paste(avatar, (30, 30))
+                av = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
+                av = av.resize((150, 150))
+                img.paste(av, (50, 50))
             except:
                 pass
 
-        # Рисуем текст
-        text_x = 130 if avatar_path else 30
-        text_y = 50
-        for line in utils.chunks(text, 25):
-            draw.text((text_x, text_y), line, font=font, fill=(20, 20, 20, 255))
-            text_y += 35
+        # имя
+        draw.text((220, 70), name, font=FONT, fill=(30, 30, 30))
 
-        # Подпись
-        draw.text((text_x, size-60), f"— {name}", font=smallfont, fill=(60, 60, 60, 255))
+        # текст цитаты
+        lines = []
+        words = text.split(" ")
+        line = ""
 
-        # Сохраняем в webp
-        output = io.BytesIO()
-        img.save(output, format="WEBP")
-        output.seek(0)
+        for w in words:
+            test = line + w + " "
+            if draw.textlength(test, font=SMALLFONT) < 620:
+                line = test
+            else:
+                lines.append(line)
+                line = w + " "
+        lines.append(line)
 
-        await m.client.send_file(m.chat_id, output, caption="✨ Стикер цитаты")
-        await m.delete()
+        y = 200
+        for l in lines:
+            draw.text((60, y), l, font=SMALLFONT, fill=(20, 20, 20))
+            y += 60
+
+        # финальная подпись
+        draw.text((60, 520), f"— {name}", font=SMALLFONT, fill=(60, 60, 60))
+
+        # отправка
+        bio = io.BytesIO()
+        bio.name = "quote.png"
+        img.save(bio, "PNG")
+        bio.seek(0)
+
+        await m.reply(file=bio)
+
+    # ======= .fquotes <юзер> <текст> =======
+    @loader.command()
+    async def fquotes(self, m):
+        """.fquotes <юзер> <текст> — создать фейковую цитату"""
+        args = utils.get_args_raw(m).split(" ", 1)
+        if len(args) < 2:
+            return await m.edit("Использование:\n.fquotes @user текст")
+
+        user = args[0]
+        text = args[1]
+
+        try:
+            ent = await m.client.get_entity(user)
+        except:
+            return await m.edit("❌ Не удалось получить пользователя")
+
+        # получаем аву
+        photo = await m.client.download_profile_photo(ent, bytes)
+        name = ent.first_name or "User"
+
+        await self.make_sticker(m, text, name, photo)
+
+    # ======= .fquo (ответ на сообщение) =======
+    @loader.command()
+    async def fquo(self, m):
+        """.fquo <текст> — создать цитату в ответ на сообщение"""
+        if not m.is_reply:
+            return await m.edit("Ответь на сообщение!")
+
+        reply = await m.get_reply_message()
+        if not reply:
+            return await m.edit("❌ Ошибка с ответом")
+
+        name = reply.sender.first_name or "User"
+        photo = await m.client.download_profile_photo(reply.sender, bytes)
+
+        text = utils.get_args_raw(m)
+        if not text:
+            return await m.edit("Напиши текст цитаты!")
+
+        await self.make_sticker(m, text, name, photo)
