@@ -1,7 +1,7 @@
 # meta developer: @B_Mods
 from .. import loader, utils
 from PIL import Image, ImageDraw, ImageFont
-import io
+import io, os
 
 
 @loader.tds
@@ -10,15 +10,22 @@ class FakeQuotesBarni(loader.Module):
     strings = {"name": "FakeQuotesBarni"}
 
     def __init__(self):
-        font_path = "modules/fonts/DejaVuSans.ttf"
-        self.font = ImageFont.truetype(font_path, 38)
-        self.smallfont = ImageFont.truetype(font_path, 30)
+        # путь к шрифту — шрифт лежит рядом с модулем
+        base = os.path.dirname(__file__)
+        font_path = os.path.join(base, "DejaVuSans.ttf")
+
+        # fallback если шрифта нет — модуль НЕ упадёт
+        try:
+            self.font = ImageFont.truetype(font_path, 38)
+            self.smallfont = ImageFont.truetype(font_path, 30)
+        except:
+            self.font = ImageFont.load_default()
+            self.smallfont = ImageFont.load_default()
 
     async def make_sticker(self, m, text: str, name: str, avatar_bytes=None):
         img = Image.new("RGBA", (900, 600), (255, 255, 255, 255))
         draw = ImageDraw.Draw(img)
 
-        # аватар
         if avatar_bytes:
             try:
                 av = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
@@ -27,10 +34,8 @@ class FakeQuotesBarni(loader.Module):
             except:
                 pass
 
-        # имя
         draw.text((220, 70), name, font=self.font, fill=(30, 30, 30))
 
-        # перенос текста
         lines = []
         words = text.split(" ")
         line = ""
