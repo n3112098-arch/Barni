@@ -1,16 +1,15 @@
 # meta developer: @B_Mods
 from .. import loader, utils
 from PIL import Image, ImageDraw, ImageFont
-import io, asyncio
+import io
 
 
 @loader.tds
-class FakeQuotes(loader.Module):
-    """Создание фейковых цитат в виде картинки"""
-    strings = {"name": "FakeQuotes"}
+class FakeQuotesBarni(loader.Module):
+    """Создание фейковых цитат в виде картинки (Barni Edition)"""
+    strings = {"name": "FakeQuotesBarni"}
 
     def __init__(self):
-        # Путь к шрифту
         font_path = "modules/fonts/DejaVuSans.ttf"
         self.font = ImageFont.truetype(font_path, 38)
         self.smallfont = ImageFont.truetype(font_path, 30)
@@ -44,20 +43,18 @@ class FakeQuotes(loader.Module):
                 line = w + " "
         lines.append(line)
 
-        # текст
         y = 200
         for l in lines:
             draw.text((60, y), l, font=self.smallfont, fill=(20, 20, 20))
             y += 60
 
-        # подпись
         draw.text((60, 520), f"— {name}", font=self.smallfont, fill=(60, 60, 60))
 
-        # отправка
         bio = io.BytesIO()
         bio.name = "quote.png"
         img.save(bio, "PNG")
         bio.seek(0)
+
         await m.reply(file=bio)
 
     @loader.command()
@@ -87,9 +84,6 @@ class FakeQuotes(loader.Module):
             return await m.edit("Ответь на сообщение!")
 
         reply = await m.get_reply_message()
-        if not reply:
-            return await m.edit("❌ Ошибка")
-
         name = reply.sender.first_name or "User"
         photo = await m.client.download_profile_photo(reply.sender, bytes)
 
