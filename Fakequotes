@@ -1,76 +1,94 @@
 # meta developer: @B_Mods
 from .. import loader, utils
-from PIL import Image, ImageDraw, ImageFont
 import io
+from PIL import Image, ImageDraw, ImageFont, ImageOps
+import requests
 
+class FakeQuotesSticker(loader.Module):
+    """Создание фейковых цитат в виде стикеров"""
+    strings = {"name": "FakeQuotesSticker"}
 
-class FakeQuotes(loader.Module):
-    """Создание фейковых цитат"""
-    strings = {"name": "FakeQuotes"}
-
-    # -------------------------------
-    # .fquotes <name> <text>
-    # -------------------------------
     @loader.command()
     async def fquotes(self, m):
-        """Создать цитату вручную: .fquotes <name> <text>"""
+        """Создать цитату вручную: <юзер> <текст>"""
         args = utils.get_args_raw(m)
         if not args:
-            return await m.edit("Использование:\n.fquotes <имя> <цитата>")
+            return await m.edit("Использование:\n.fquotes <имя> <текст>")
 
         parts = args.split(maxsplit=1)
         if len(parts) < 2:
-            return await m.edit("❗ Нужно: .fquotes <имя> <цитата>")
+            return await m.edit("❗ Нужно: .fquotes <имя> <текст>")
 
         name, text = parts[0], parts[1]
+        await self.make_sticker(m, text, name, None)
 
-        await self.makequote(m, text, name)
-
-    # -------------------------------
-    # .fquo <text> (в ответ на сообщение)
-    # -------------------------------
     @loader.command()
     async def fquo(self, m):
-        """Создать цитату из реплая: .fquo <текст>"""
+        """Создать цитату по reply: <текст>"""
         reply = await m.get_reply_message()
-        if not reply:
-            return await m.edit("❗ Ответь на сообщение!")
-
-        if not reply.sender:
-            return await m.edit("❗ Не могу определить имя отправителя.")
+        if not reply or not reply.sender:
+            return await m.edit("❗ Ответь на сообщение с пользователем!")
 
         name = reply.sender.first_name
         text = utils.get_args_raw(m)
-
         if not text:
-            return await m.edit("Использование:\nОтветь на сообщение → .fquo <цитата>")
+            return await m.edit("Использование:\nОтветь на сообщение → .fquo <текст>")
 
-        await self.makequote(m, text, name)
+        # Получаем аватарку пользователя
+        photo = None
+        if reply.sender.photo:
+            try:
+                photo = await m.client.download_profile_photo(reply.sender)
+            except:
+                photo = None
 
-    # -------------------------------
-    # Генератор картинки
-    # -------------------------------
-    async def makequote(self, m, text, name):
-        img = Image.new("RGB", (900, 600), "white")
+        await self.make_sticker(m, text, name, photo)
+
+    async def make_sticker(self, m, text, name, avatar_path):
+        # Размер стикера
+        size = 512
+        margin = 30
+
+        # Фон и тень
+        img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
         draw = ImageDraw.Draw(img)
 
+        card = Image.new("RGBA", (size-40, size-40), (255, 255, 255, 255))
+        shadow = Image.new("RGBA", card.size, (0,0,0,100))
+        img.paste(shadow, (20, 20), shadow)
+        img.paste(card, (20, 20))
+
+        # Шрифт
         try:
-            font = ImageFont.truetype("DejaVuSans.ttf", 36)
-            smallfont = ImageFont.truetype("DejaVuSans.ttf", 28)
+            font = ImageFont.truetype("DejaVuSans.ttf", 28)
+            smallfont = ImageFont.truetype("DejaVuSans.ttf", 22)
         except:
             font = ImageFont.load_default()
             smallfont = ImageFont.load_default()
 
-        y = 100
-        for line in utils.chunks(text, 35):
-            draw.text((60, y), line, font=font, fill=(20, 20, 20))
-            y += 55
+        # Рисуем аватар, если есть
+        if avatar_path:
+            try:
+                avatar = Image.open(avatar_path).convert("RGBA")
+                avatar = avatar.resize((80, 80))
+                img.paste(avatar, (30, 30))
+            except:
+                pass
 
-        draw.text((60, 500), f"— {name}", font=smallfont, fill=(60, 60, 60))
+        # Рисуем текст
+        text_x = 130 if avatar_path else 30
+        text_y = 50
+        for line in utils.chunks(text, 25):
+            draw.text((text_x, text_y), line, font=font, fill=(20, 20, 20, 255))
+            text_y += 35
 
+        # Подпись
+        draw.text((text_x, size-60), f"— {name}", font=smallfont, fill=(60, 60, 60, 255))
+
+        # Сохраняем в webp
         output = io.BytesIO()
-        img.save(output, format="PNG")
+        img.save(output, format="WEBP")
         output.seek(0)
 
-        await m.client.send_file(m.chat_id, output, caption="🖼 Цитата")
+        await m.client.send_file(m.chat_id, output, caption="✨ Стикер цитаты")
         await m.delete()
