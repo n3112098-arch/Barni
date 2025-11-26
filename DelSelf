@@ -28,3 +28,68 @@ class DeleteSelfMessages(loader.Module):
             m.chat_id,
             f"✔️ Удалено сообщений: {deleted}"
         )
+        @loader.command()
+    async def delusr(self, m):
+        """
+        .delusr @user — удаляет все новые сообщения этого пользователя (пока модуль включён)
+        Работает только если ты админ в чате.
+        """
+        if not m.chat:
+            return await m.edit("Это работает только в группах.")
+
+        args = utils.get_args_raw(m)
+        if not args:
+            return await m.edit("Укажи пользователя: `.delusr @username`")
+
+        try:
+            ent = await m.client.get_entity(args)
+        except:
+            return await m.edit("Не удалось получить пользователя.")
+
+        uid = ent.id
+        chat_id = m.chat_id
+
+        self._del_targets.setdefault(chat_id, set()).add(uid)
+        await m.edit(f"🗑 Теперь все новые сообщения от {ent.first_name} будут удаляться.")
+
+    @loader.command()
+    async def undelusr(self, m):
+        """
+        .undelusr @user — перестаёт удалять сообщения указанного пользователя
+        """
+        args = utils.get_args_raw(m)
+        if not args:
+            return await m.edit("Укажи пользователя: `.undelusr @username`")
+
+        try:
+            ent = await m.client.get_entity(args)
+        except:
+            return await m.edit("Не удалось получить пользователя.")
+
+        uid = ent.id
+        chat_id = m.chat_id
+
+        if chat_id in self._del_targets and uid in self._del_targets[chat_id]:
+            self._del_targets[chat_id].remove(uid)
+            return await m.edit(f"🟩 Удаление сообщений {ent.first_name} отключено.")
+
+        await m.edit("Этот пользователь не был включён.")
+
+    async def watcher(self, m):
+        """
+        Ловит новые сообщения и удаляет их
+        """
+        if not hasattr(self, "_del_targets"):
+            self._del_targets = {}
+
+        if not m or not m.chat or not m.sender_id:
+            return
+
+        chat_id = m.chat_id
+        sender_id = m.sender_id
+
+        if chat_id in self._del_targets and sender_id in self._del_targets[chat_id]:
+            try:
+                await m.delete()
+            except:
+                pass
