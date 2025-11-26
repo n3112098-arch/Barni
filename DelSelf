@@ -1,112 +1,92 @@
-# meta developer: @B_Mods
 from .. import loader, utils
 import asyncio
 
-@loader.tds
 class DelSel(loader.Module):
-    """Удаление своих сообщений и автоудаление новых сообщений выбранного юзера"""
+    """Удаление своих и выбранных сообщений пользователей"""
+
     strings = {"name": "DelSel"}
 
-    async def client_ready(self, client, db):
-        # Инициализируем контейнер для целей автоудаления: {chat_id: {user_id, ...}}
-        self._del_targets = {}
-        self._db = db
+    def __init__(self):
+        self._del_targets = {}  # чат: {user_ids}
 
-    # ---------------------------------------
-    # Удалить ВСЕ свои сообщения в чате
-    # ---------------------------------------
     @loader.command()
     async def dsms(self, m):
-        """.dsms — удалить ВСЕ свои сообщения в этом чате"""
+        """Удалить ВСЕ свои сообщения в этом чате"""
         me = await m.client.get_me()
-        await m.edit("🗑 Начинаю удаление своих сообщений...")
+
+        await m.edit("🗑 Начинаю удаление ваших сообщений...")
 
         deleted = 0
-        # Проход по сообщениям чата (последние сверху)
+
         async for msg in m.client.iter_messages(m.chat_id):
-            try:
-                if msg.sender_id == me.id:
+            if msg.sender_id == me.id:
+                try:
                     await msg.delete()
                     deleted += 1
-                    await asyncio.sleep(0.05)  # защитный тайм-аут
-            except Exception:
-                # игнорируем ошибки (нет прав, floodwait и т.п.)
-                pass
+                    await asyncio.sleep(0.05)
+                except:
+                    pass
 
-        await m.client.send_message(m.chat_id, f"✔️ Удалено сообщений: {deleted}")
+        await m.edit(f"✔️ Удалено сообщений: {deleted}")
 
-    # ---------------------------------------
-    # Включить автоудаление нового пользователя
-    # ---------------------------------------
     @loader.command()
     async def delusr(self, m):
         """
-        .delusr <user> — включить автоудаление всех новых сообщений указанного пользователя в текущем чате
-        (например: .delusr @username или .delusr user_id)
+        .delusr @user — удаляет все НОВЫЕ сообщения этого пользователя
+        Работает только при наличии прав администратора.
         """
         if not m.chat:
-            return await m.edit("❗ Эта команда работает только в чатах/группах.")
+            return await m.edit("❌ Команда работает только в группах.")
 
         args = utils.get_args_raw(m)
         if not args:
-            return await m.edit("Использование: `.delusr @username`")
+            return await m.edit("Укажи пользователя: `.delusr @username`")
 
         try:
             ent = await m.client.get_entity(args)
-        except Exception:
-            return await m.edit("❌ Не удалось получить пользователя. Проверь указанный ник/ID.")
-
-        uid = ent.id
-        chat_id = m.chat_id
-
-        self._del_targets.setdefault(chat_id, set()).add(uid)
-        await m.edit(f"🗑 Теперь все новые сообщения от **{ent.first_name or ent.username or uid}** будут удаляться в этом чате.")
-
-    # ---------------------------------------
-    # Выключить автоудаление пользователя
-    # ---------------------------------------
-    @loader.command()
-    async def undelusr(self, m):
-        """
-        .undelusr <user> — выключить автоудаление указанного пользователя
-        """
-        args = utils.get_args_raw(m)
-        if not args:
-            return await m.edit("Использование: `.undelusr @username`")
-
-        try:
-            ent = await m.client.get_entity(args)
-        except Exception:
+        except:
             return await m.edit("❌ Не удалось получить пользователя.")
 
         uid = ent.id
-        chat_id = m.chat_id
+        chat = m.chat_id
 
-        if chat_id in self._del_targets and uid in self._del_targets[chat_id]:
-            self._del_targets[chat_id].remove(uid)
-            return await m.edit(f"🟩 Автоудаление сообщений **{ent.first_name or ent.username or uid}** отключено.")
-        else:
-            return await m.edit("ℹ️ Этот пользователь не был включён в автоудаление для этого чата.")
+        self._del_targets.setdefault(chat, set()).add(uid)
 
-    # ---------------------------------------
-    # Watcher — удаляет новые сообщения от целевых пользователей
-    # ---------------------------------------
+        await m.edit(f"🛑 Теперь все НОВЫЕ сообщения от **{ent.first_name}** будут удаляться.")
+
+    @loader.command()
+    async def undelusr(self, m):
+        """
+        .undelusr @user — отключает удаление сообщений этого пользователя
+        """
+        args = utils.get_args_raw(m)
+        if not args:
+            return await m.edit("Укажи пользователя: `.undelusr @username`")
+
+        try:
+            ent = await m.client.get_entity(args)
+        except:
+            return await m.edit("❌ Не удалось получить пользователя.")
+
+        uid = ent.id
+        chat = m.chat_id
+
+        if chat in self._del_targets and uid in self._del_targets[chat]:
+            self._del_targets[chat].remove(uid)
+            return await m.edit(f"🟩 Удаление сообщений **{ent.first_name}** выключено.")
+
+        await m.edit("❗ Этот пользователь не был включён ранее.")
+
     async def watcher(self, m):
-        # быстрые проверки валидности
-        if not m or not getattr(m, "chat_id", None) or not getattr(m, "sender_id", None):
+        """Автоматическое удаление новых сообщений выбранных пользователей"""
+        if not m or not m.chat or not m.sender_id:
             return
 
-        chat_id = m.chat_id
-        sender_id = m.sender_id
+        chat = m.chat_id
+        sender = m.sender_id
 
-        # проверяем включённые цели для этого чата
-        targets = self._del_targets.get(chat_id)
-        if not targets:
-            return
-
-        if sender_id in targets:
-            # пытаемся удалить; игнорируем ошибки (нет прав и т.п.)
+        if chat in self._del_targets and sender in self._del_targets[chat]:
             try:
                 await m.delete()
-            except Exception:
+            except:
                 pass
