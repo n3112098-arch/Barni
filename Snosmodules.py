@@ -9,7 +9,7 @@ class FakeSnos(loader.Module):
 
     @loader.command()
     async def snos(self, m):
-        """.snos <@user> — запустить фейковый снос аккаунта"""
+        """<@user> — запустить фейковый снос аккаунта"""
         args = utils.get_args_raw(m)
         if not args:
             return await m.edit("Использование: `.snos @username`")
