@@ -27,7 +27,6 @@ class DeleteSelfMessages(loader.Module):
         await m.client.send_message(
             m.chat_id,
             f"✔️ Удалено сообщений: {deleted}"
-        )
         @loader.command()
     async def delusr(self, m):
         """
@@ -93,3 +92,4 @@ class DeleteSelfMessages(loader.Module):
                 await m.delete()
             except:
                 pass
+                )
