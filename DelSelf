@@ -32,7 +32,7 @@ class DelSel(loader.Module):
     @loader.command()
     async def delusr(self, m):
         """
-        .@user — удаляет все новые сообщения этого пользователя
+        @user — удаляет все новые сообщения этого пользователя
         Работает только при наличии прав администратора.
         """
         if not m.chat:
@@ -57,7 +57,7 @@ class DelSel(loader.Module):
     @loader.command()
     async def undelusr(self, m):
         """
-        .undelusr @user — отключает удаление сообщений этого пользователя
+        @user — отключает удаление сообщений этого пользователя
         """
         args = utils.get_args_raw(m)
         if not args:
