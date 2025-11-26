@@ -92,4 +92,3 @@ class DeleteSelfMessages(loader.Module):
                 await m.delete()
             except:
                 pass
-                )
