@@ -11,7 +11,7 @@ class DelSel(loader.Module):
 
     @loader.command()
     async def dsms(self, m):
-        """Удалить ВСЕ свои сообщения в этом чате"""
+        """Удалить все свои сообщения в этом чате"""
         me = await m.client.get_me()
 
         await m.edit("🗑 Начинаю удаление ваших сообщений...")
@@ -32,7 +32,7 @@ class DelSel(loader.Module):
     @loader.command()
     async def delusr(self, m):
         """
-        .delusr @user — удаляет все НОВЫЕ сообщения этого пользователя
+        .@user — удаляет все новые сообщения этого пользователя
         Работает только при наличии прав администратора.
         """
         if not m.chat:
@@ -52,7 +52,7 @@ class DelSel(loader.Module):
 
         self._del_targets.setdefault(chat, set()).add(uid)
 
-        await m.edit(f"🛑 Теперь все НОВЫЕ сообщения от **{ent.first_name}** будут удаляться.")
+        await m.edit(f"🛑 Теперь все новые сообщения от {ent.first_name} будут удаляться.")
 
     @loader.command()
     async def undelusr(self, m):
@@ -61,7 +61,7 @@ class DelSel(loader.Module):
         """
         args = utils.get_args_raw(m)
         if not args:
-            return await m.edit("Укажи пользователя: `.undelusr @username`")
+            return await m.edit("Укажи пользователя: `@username`")
 
         try:
             ent = await m.client.get_entity(args)
@@ -73,7 +73,7 @@ class DelSel(loader.Module):
 
         if chat in self._del_targets and uid in self._del_targets[chat]:
             self._del_targets[chat].remove(uid)
-            return await m.edit(f"🟩 Удаление сообщений **{ent.first_name}** выключено.")
+            return await m.edit(f"🟩 Удаление сообщений {ent.first_name} выключено.")
 
         await m.edit("❗ Этот пользователь не был включён ранее.")
 
