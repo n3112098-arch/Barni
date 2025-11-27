@@ -1,64 +1,64 @@
 # meta developer: @B_Mods
-
 from .. import loader, utils
-from pptx import Presentation
-from PIL import Image
-import io
-import asyncio
+import pptx
 import os
 
-
-class PresSlides(loader.Module):
-    """Извлекает слайды из PPTX/ODP и отправляет их как картинки"""
-    strings = {"name": "PresSlides"}
+class PresText(loader.Module):
+    """Присылает текст слайдов из PPTX"""
+    
+    strings = {"name": "PresText"}
 
     @loader.command()
-    async def pres(self, m):
-        """
-        Использование: ответь на файл презентации (.pptx / .odp)
-        .pres — отправляет все слайды по одному
-        """
-        if not m.is_reply:
-            return await m.edit("📌 Ответь командой на файл презентации (.pptx / .odp)")
+    async def pres(self, message):
+        """Отправляет текст со слайдов .pptx — использовать как ответ на файл"""
+        
+        reply = message.reply_to_message
+        if not reply:
+            return await message.edit("❗ Пришли .pptx файл и ответь командой `.pres`")
 
-        reply = await m.get_reply_message()
-
+        # Проверяем файл
         if not reply.document:
-            return await m.edit("❌ Это не файл презентации.")
+            return await message.edit("❗ Это не файл. Пришли презентацию в формате .pptx")
 
-        filename = reply.file.name
+        file = await reply.download()
+        if not file.endswith(".pptx"):
+            return await message.edit("❗ Нужен файл презентации .pptx")
 
-        if not (filename.endswith(".pptx") or filename.endswith(".odp")):
-            return await m.edit("❌ Формат не поддерживается. Используй PPTX или ODP.")
+        await message.edit("📥 Загружаю презентацию...")
 
-        await m.edit("⏳ Загружаю файл...")
+        try:
+            prs = pptx.Presentation(file)
+        except Exception as e:
+            return await message.edit(f"❌ Ошибка при чтении файла: {e}")
 
-        # скачиваем файл
-        file_bytes = await m.client.download_file(reply.document)
-        path = f"/data/data/com.termux/files/home/{filename}"
+        await message.edit("📄 Извлекаю текст со слайдов...")
 
-        with open(path, "wb") as f:
-            f.write(file_bytes)
+        if len(prs.slides) == 0:
+            return await message.edit("❗ В презентации нет слайдов")
 
-        await m.edit("📂 Файл загружен. Обрабатываю слайды...")
+        # Обрабатываем каждый слайд
+        for i, slide in enumerate(prs.slides, start=1):
+            slide_text = []
 
-        prs = Presentation(path)
+            for shape in slide.shapes:
+                if hasattr(shape, "text"):
+                    txt = shape.text.strip()
+                    if txt:
+                        slide_text.append(txt)
 
-        slide_num = 0
+            if not slide_text:
+                text = "— Слайд без текста —"
+            else:
+                text = "\n".join(slide_text)
 
-        for slide in prs.slides:
-            slide_num += 1
+            await message.client.send_message(
+                message.chat_id,
+                f"📌 *Слайд {i}*\n\n{text}"
+            )
 
-            img = Image.new("RGB", (1280, 720), "white")
-            draw = Image.Draw.Draw(img)
-            draw.text((50, 50), f"Слайд #{slide_num}\n(рендер текста презентации)", fill="black")
+        await message.edit("✅ Готово! Все тексты слайдов отправлены.")
 
-            bio = io.BytesIO()
-            bio.name = f"slide_{slide_num}.jpg"
-            img.save(bio, "JPEG")
-            bio.seek(0)
-
-            await m.client.send_file(m.chat_id, bio, caption=f"📸 Слайд {slide_num}")
-            await asyncio.sleep(0.5)
-
-        await m.edit("✅ Все слайды отправлены!")
+        try:
+            os.remove(file)
+        except:
+            pass
