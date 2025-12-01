@@ -13,7 +13,7 @@ class DistortMeMod(loader.Module):
     async def we(self, message):
         """
         .we [strength]
-        Ответь на фото командой: .we 0.5
+        Ответь на фото командой: 
         strength 0.1..0.9 (по умолчанию 0.5)
         """
         args = utils.get_args_raw(message).strip()
