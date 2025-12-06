@@ -1,0 +1,91 @@
+from .. import loader, utils
+import os
+from datetime import datetime
+
+
+class ChatLogger(loader.Module):
+    """Логирование всех сообщений чата в txt"""
+
+    strings = {"name": "ChatLogger"}
+
+    def __init__(self):
+        self.config = loader.ModuleConfig(
+            loader.ConfigValue(
+                "enabled_chats",
+                [],
+                "Список чатов, где включено логирование",
+            )
+        )
+
+    @loader.command()
+    async def clog(self, m):
+        """
+        .clog on/off — включить или выключить лог
+        .clog file — отправить лог
+        .clog clear — очистить лог
+        """
+        args = utils.get_args_raw(m)
+
+        chat_id = str(m.chat_id)
+        log_file = f"chatlog_{chat_id}.txt"
+
+        if args == "on":
+            if chat_id not in self.config["enabled_chats"]:
+                self.config["enabled_chats"].append(chat_id)
+            await m.edit("🟩 Логирование включено.")
+            return
+
+        if args == "off":
+            if chat_id in self.config["enabled_chats"]:
+                self.config["enabled_chats"].remove(chat_id)
+            await m.edit("🟥 Логирование выключено.")
+            return
+
+        if args == "file":
+            if os.path.exists(log_file):
+                await m.client.send_file(m.chat_id, log_file)
+                await m.edit("📄 Лог отправлен.")
+            else:
+                await m.edit("Лог пуст.")
+            return
+
+        if args == "clear":
+            if os.path.exists(log_file):
+                os.remove(log_file)
+            await m.edit("🧹 Лог очищен.")
+            return
+
+        await m.edit("Использование:\n.clog on | off | file | clear")
+
+    async def watcher(self, m):
+        if not m or not m.chat_id:
+            return
+
+        chat_id = str(m.chat_id)
+
+        # Логирование включено?
+        if chat_id not in self.config["enabled_chats"]:
+            return
+
+        log_file = f"chatlog_{chat_id}.txt"
+
+        # Получаем имя отправителя
+        try:
+            sender = await m.get_sender()
+            name = sender.first_name or "Unknown"
+        except:
+            name = "Unknown"
+
+        # Сообщение
+        if m.text:
+            text = m.text
+        else:
+            # Если медиа — фиксим
+            text = f"[Медиа: {m.media}]"
+
+        # Формируем строку
+        line = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {name}: {text}\n"
+
+        # Записываем
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(line)
