@@ -20,7 +20,7 @@ class ChatLogger(loader.Module):
     @loader.command()
     async def clog(self, m):
         """
-        .clog on/off — включить или выключить лог
+         on/off — включить или выключить лог
         .clog file — отправить лог
         .clog clear — очистить лог
         """
