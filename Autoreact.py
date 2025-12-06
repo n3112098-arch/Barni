@@ -18,7 +18,7 @@ class AutoReactMod(loader.Module):
         """<юзер> <эмодзи> — ставить авто-реакцию """
         args = utils.get_args_raw(m).split(" ")
         if len(args) < 2:
-            return await m.edit("Использование: `@user ❤️`")
+            return await m.edit("Использование: ` reak @user ❤️`")
 
         user = args[0]
         emoji = args[1]
@@ -43,7 +43,7 @@ class AutoReactMod(loader.Module):
         """ <юзер> — отключить авто-реакции """
         args = utils.get_args_raw(m)
         if not args:
-            return await m.edit("Укажи пользователя: `@user`")
+            return await m.edit("Укажи пользователя: `reaoff @user`")
 
         try:
             ent = await m.client.get_entity(args)
