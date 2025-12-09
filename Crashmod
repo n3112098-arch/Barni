@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # (c) Barni Crash Sticker Module
 
-from .. import loader, utils
+from .. import loader
+from telethon.tl.types import DocumentAttributeSticker
 import base64
 
 @loader.tds
@@ -9,11 +10,10 @@ class CrashSticker(loader.Module):
     """Отправляет краш-стикер"""
     strings = {"name": "CrashSticker"}
 
-    # Повреждённый WEBP (намеренно битый)
-    CRASH_DATA = base64.b64decode(
-        b"UklGRiIAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSCwAAAABYXV0aG9yAAABAQAA"
-        b"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-        b"/////wD///8A////AP///wD///8A////AP///wD///8AAAAA"
+    # Битый webp с минимальной валидной структурой
+    DATA = base64.b64decode(
+        b"UklGRiIAAABXRUJQVlA4ICAAAADQAgCdASoBAAEAAQAcJaQAA3AA/v///wD///8A////"
+        b"AP///wD///8A////AP///wD///8AAAAA"
     )
 
     async def crashcmd(self, message):
@@ -21,11 +21,17 @@ class CrashSticker(loader.Module):
         try:
             await message.client.send_file(
                 message.chat_id,
-                self.CRASH_DATA,
-                force_document=False,   # отправляем именно как стикер
-                allow_cache=False,
-                file_name="crash.webp",
-                mime_type="image/webp"
+                self.DATA,
+                mime_type="image/webp",
+                file_name="sticker.webp",
+                attributes=[
+                    DocumentAttributeSticker(
+                        alt="🤯", 
+                        stickerset=None,
+                        mask=None
+                    )
+                ],
+                force_document=False
             )
         except Exception as e:
             await message.edit(f"Ошибка: {e}")
