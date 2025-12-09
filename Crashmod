@@ -1,0 +1,31 @@
+# -*- coding: utf-8 -*-
+# (c) Barni Crash Sticker Module
+
+from .. import loader, utils
+import base64
+
+@loader.tds
+class CrashSticker(loader.Module):
+    """Отправляет краш-стикер"""
+    strings = {"name": "CrashSticker"}
+
+    # Повреждённый WEBP (намеренно битый)
+    CRASH_DATA = base64.b64decode(
+        b"UklGRiIAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSCwAAAABYXV0aG9yAAABAQAA"
+        b"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        b"/////wD///8A////AP///wD///8A////AP///wD///8AAAAA"
+    )
+
+    async def crashcmd(self, message):
+        """Отправляет краш-стикер"""
+        try:
+            await message.client.send_file(
+                message.chat_id,
+                self.CRASH_DATA,
+                force_document=False,   # отправляем именно как стикер
+                allow_cache=False,
+                file_name="crash.webp",
+                mime_type="image/webp"
+            )
+        except Exception as e:
+            await message.edit(f"Ошибка: {e}")
