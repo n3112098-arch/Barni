@@ -33,16 +33,16 @@ class AutoReply(loader.Module):
             return await m.edit("⚠️ Уже включено для этого пользователя.")
 
         self.targets[chat].add(user.id)
-        await m.edit(f"🤖 Автоответ для {user.first_name} включен.")
+        await m.edit(f"🤖 Автоответчик для {user.first_name} включён.")
 
     @loader.command()
     async def repstop(self, m):
         """
-        @user — выключить автоответчик
+         @user — выключить автоответчик
         """
         args = utils.get_args_raw(m)
         if not args:
-            return await m.edit("Укажи пользователя: ` @username`")
+            return await m.edit("Укажи пользователя: `@username`")
 
         try:
             user = await m.client.get_entity(args)
@@ -73,7 +73,7 @@ class AutoReply(loader.Module):
         if uid not in self.targets[chat]:
             return
 
-        # Берём 150 прошлых сообщений и выбираем текст
+        # Берём 150 прошлых сообщений
         texts = []
         async for msg in m.client.iter_messages(chat, limit=150):
             if msg.text:
@@ -85,6 +85,7 @@ class AutoReply(loader.Module):
         reply_text = random.choice(texts)
 
         try:
-            await m.respond(reply_text)
+            # !!! Ответ именно reply !!!
+            await m.reply(reply_text)
         except:
             pass
