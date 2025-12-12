@@ -1,0 +1,83 @@
+from .. import loader, utils
+import asyncio
+import random
+
+class AutoReplier(loader.Module):
+    """
+    Автоответ указанному пользователю
+    Разработчик: @B_Mods
+    """
+
+    strings = {"name": "AutoReplier"}
+
+    def __init__(self):
+        self.targets = {}      # chat_id: set(user_ids)
+        self.running = {}      # (chat_id, user_id): bool
+
+    @loader.command()
+    async def rep(self, m):
+        """
+        .rep @user — начать автоответ
+        """
+        args = utils.get_args_raw(m)
+        if not args:
+            return await m.edit("Укажи пользователя: `@username`")
+
+        try:
+            ent = await m.client.get_entity(args)
+        except:
+            return await m.edit("Не могу получить юзера")
+
+        chat = m.chat_id
+        uid = ent.id
+
+        self.targets.setdefault(chat, set()).add(uid)
+        self.running[(chat, uid)] = True
+
+        await m.edit(f"▶ Автоответ {ent.first_name} включён.")
+
+        asyncio.create_task(self.auto_reply(m, chat, uid))
+
+    @loader.command()
+    async def repstop(self, m):
+        """
+        .repstop @user — остановить автоответ
+        """
+        args = utils.get_args_raw(m)
+        if not args:
+            return await m.edit("Укажи пользователя: `@username`")
+
+        try:
+            ent = await m.client.get_entity(args)
+        except:
+            return await m.edit("Не могу найти юзера")
+
+        chat = m.chat_id
+        uid = ent.id
+
+        self.running[(chat, uid)] = False
+
+        if chat in self.targets and uid in self.targets[chat]:
+            self.targets[chat].remove(uid)
+
+        await m.edit(f"⏹ Автоответ {ent.first_name} выключен.")
+
+    async def auto_reply(self, m, chat, uid):
+        while self.running.get((chat, uid), False):
+            try:
+                msgs = []
+                async for msg in m.client.iter_messages(chat, limit=100):
+                    if msg.text:
+                        msgs.append(msg.text)
+
+                if not msgs:
+                    await asyncio.sleep(4)
+                    continue
+
+                text = random.choice(msgs)
+
+                await m.client.send_message(chat, text, reply_to=uid)
+                await asyncio.sleep(4)
+
+            except Exception:
+                await asyncio.sleep(4)
