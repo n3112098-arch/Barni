@@ -2,10 +2,10 @@
 from .. import loader, utils
 import random
 
-class AutoReplyPro2(loader.Module):
+class AutoReply(loader.Module):
     """Автоответчик: отвечает только когда пользователь пишет"""
 
-    strings = {"name": "AutoReplyPro2"}
+    strings = {"name": "AutoReply"}
 
     def __init__(self):
         self.targets = {}  # chat_id: set(user_ids)
