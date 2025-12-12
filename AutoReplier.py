@@ -3,7 +3,8 @@ from .. import loader, utils
 import random
 
 class AutoReply(loader.Module):
-    """Автоответчик: отвечает только когда пользователь пишет"""
+    """Автоответчик: отвечает только когда пользователь пишет
+    Разработчик: @B_Mods"""
 
     strings = {"name": "AutoReply"}
 
