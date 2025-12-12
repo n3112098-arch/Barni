@@ -1,4 +1,4 @@
-# Разработчик: @B_Mods
+# meta developer: @B_Mods
 from .. import loader, utils
 import asyncio
 import random
