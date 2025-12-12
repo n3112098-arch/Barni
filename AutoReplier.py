@@ -1,91 +1,69 @@
-# Developed by @B_Mods
+# Разработчик: @B_Mods
 from .. import loader, utils
+import asyncio
 import random
 
-class AutoReply(loader.Module):
-    """Автоответчик: отвечает только когда пользователь пишет"""
+class AutoReplyMod(loader.Module):
+    """Авто-ответ человеку по тригеру
+    """
+    strings = {"name": "AutoReplyMod"}
 
-    strings = {"name": "AutoReply"}
+    async def client_ready(self, client, db):
+        self.client = client
+        self.targets = {}  # user_id -> enabled
 
-    def __init__(self):
-        self.targets = {}  # chat_id: set(user_ids)
+    async def repcmd(self, m):
+        """Запуск: @user"""
+        user = await utils.get_user(m)
+        if not user:
+            return await m.edit("Кого репать?")
 
-    @loader.command()
-    async def rep(self, m):
-        """
-        @user — включить автоответ пользователю
-        """
-        args = utils.get_args_raw(m)
-        if not args:
-            return await m.edit("Укажи пользователя: `@username`")
+        self.targets[user.id] = True
+        return await m.edit(f"Теперь отвечаю {user.first_name}")
 
-        try:
-            user = await m.client.get_entity(args)
-        except:
-            return await m.edit("❌ Не удалось получить пользователя")
+    async def repstopcmd(self, m):
+        """Остановка: @user"""
+        user = await utils.get_user(m)
+        if not user:
+            return await m.edit("Кого отключить?")
 
-        chat = m.chat_id
-
-        if chat not in self.targets:
-            self.targets[chat] = set()
-
-        if user.id in self.targets[chat]:
-            return await m.edit("⚠️ Уже включено для этого пользователя.")
-
-        self.targets[chat].add(user.id)
-        await m.edit(f"🤖 Автоответчик для {user.first_name} включён.")
-
-    @loader.command()
-    async def repstop(self, m):
-        """
-         @user — выключить автоответчик
-        """
-        args = utils.get_args_raw(m)
-        if not args:
-            return await m.edit("Укажи пользователя: `@username`")
-
-        try:
-            user = await m.client.get_entity(args)
-        except:
-            return await m.edit("❌ Не удалось получить пользователя")
-
-        chat = m.chat_id
-
-        if chat in self.targets and user.id in self.targets[chat]:
-            self.targets[chat].remove(user.id)
-            return await m.edit(f"🛑 Больше не отвечаю {user.first_name}")
-
-        await m.edit("⚠️ Этот пользователь не был активирован.")
+        self.targets.pop(user.id, None)
+        return await m.edit(f"Остановил ответы {user.first_name}")
 
     async def watcher(self, m):
-        """
-        Срабатывает каждый раз когда кто-то пишет сообщение
-        """
-        if not m or not m.chat or not m.sender_id:
+        # Проверяем что это сообщение от юзера на которого включён реп
+        if not m.sender_id:
             return
 
-        chat = m.chat_id
-        uid = m.sender_id
-
-        if chat not in self.targets:
+        if m.sender_id not in self.targets:
             return
 
-        if uid not in self.targets[chat]:
-            return
-
-        # Берём 150 прошлых сообщений
-        texts = []
-        async for msg in m.client.iter_messages(chat, limit=150):
-            if msg.text:
-                texts.append(msg.text)
-
-        if not texts:
-            return
-
-        reply_text = random.choice(texts)
-
+        # Берём 1 случайное сообщение из истории (100 назад)
         try:
-            # !!! Ответ именно reply !!!
-            await m.reply(reply_text)
+            msgs = await self.client.get_messages(
+                m.chat_id, limit=100, from_user="me"
+            )
+            if not msgs:
+                return
+
+            last_texts = [x.text for x in msgs if x.text]
+            if not last_texts:
+                return
+
+            reply_text = random.choice(last_texts)
         except:
-            pass
+            return
+
+        # Генерируем корректный random_id (int32)
+        random_id = random.randint(-2**31 + 1, 2**31 - 1)
+
+        # Отвечаем именно реплаем
+        try:
+            await self.client.send_message(
+                m.chat_id,
+                reply_text,
+                reply_to=m.id,
+                random_id=random_id
+            )
+        except Exception as e:
+            print("Send error:", e)
