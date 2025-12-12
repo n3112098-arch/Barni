@@ -1,83 +1,100 @@
+# Developed by @B_Mods
 from .. import loader, utils
 import asyncio
 import random
 
-class AutoReplier(loader.Module):
-    """
-    Автоответ указанному пользователю
-    Разработчик: @B_Mods
-    """
+class AutoReply(loader.Module):
+    """Авто-ответчик на сообщения пользователя"""
 
-    strings = {"name": "AutoReplier"}
+    strings = {"name": "AutoReply"}
 
     def __init__(self):
-        self.targets = {}      # chat_id: set(user_ids)
-        self.running = {}      # (chat_id, user_id): bool
+        self.running = {}
 
     @loader.command()
     async def rep(self, m):
         """
-        .rep @user — начать автоответ
+        .rep @user — начать автоматически отвечать пользователю
         """
         args = utils.get_args_raw(m)
         if not args:
-            return await m.edit("Укажи пользователя: `@username`")
+            return await m.edit("Укажи пользователя: ` @username`")
 
         try:
-            ent = await m.client.get_entity(args)
+            user = await m.client.get_entity(args)
         except:
-            return await m.edit("Не могу получить юзера")
+            return await m.edit("❌ Не удалось получить пользователя")
 
+        uid = user.id
         chat = m.chat_id
-        uid = ent.id
 
-        self.targets.setdefault(chat, set()).add(uid)
-        self.running[(chat, uid)] = True
+        key = (chat, uid)
+        if key in self.running and self.running[key]:
+            return await m.edit("⚠️ Уже активировано для этого пользователя.")
 
-        await m.edit(f"▶ Автоответ {ent.first_name} включён.")
+        self.running[key] = True
+        await m.edit(f"🤖 Авто-ответчик запущен для {user.first_name}")
 
-        asyncio.create_task(self.auto_reply(m, chat, uid))
+        asyncio.create_task(self._auto_reply(m, chat, uid))
+
+    async def _auto_reply(self, m, chat, uid):
+        while self.running.get((chat, uid), False):
+            try:
+                # Ищем последнее сообщение пользователя
+                msg_from_user = None
+                async for msg in m.client.iter_messages(chat, from_user=uid, limit=1):
+                    msg_from_user = msg
+                    break
+
+                if not msg_from_user:
+                    await asyncio.sleep(4)
+                    continue
+
+                reply_msg_id = msg_from_user.id
+
+                # Собираем 100 последних текстов
+                texts = []
+                async for msg in m.client.iter_messages(chat, limit=150):
+                    if msg.text:
+                        texts.append(msg.text)
+
+                if not texts:
+                    await asyncio.sleep(4)
+                    continue
+
+                text = random.choice(texts)
+
+                await m.client.send_message(
+                    chat,
+                    text,
+                    reply_to=reply_msg_id
+                )
+
+                await asyncio.sleep(4)
+
+            except Exception as e:
+                # безопасный режим: не падаем
+                await asyncio.sleep(4)
 
     @loader.command()
     async def repstop(self, m):
         """
-        .repstop @user — остановить автоответ
+        .repstop @user — остановить авто-ответчик
         """
         args = utils.get_args_raw(m)
         if not args:
-            return await m.edit("Укажи пользователя: `@username`")
+            return await m.edit("Укажи пользователя: ` @username`")
 
         try:
-            ent = await m.client.get_entity(args)
+            user = await m.client.get_entity(args)
         except:
-            return await m.edit("Не могу найти юзера")
+            return await m.edit("❌ Не удалось получить пользователя")
 
-        chat = m.chat_id
-        uid = ent.id
+        uid = user.id
+        key = (m.chat_id, uid)
 
-        self.running[(chat, uid)] = False
+        if key not in self.running or not self.running[key]:
+            return await m.edit("⚠️ Авто-ответчик не был включён.")
 
-        if chat in self.targets and uid in self.targets[chat]:
-            self.targets[chat].remove(uid)
-
-        await m.edit(f"⏹ Автоответ {ent.first_name} выключен.")
-
-    async def auto_reply(self, m, chat, uid):
-        while self.running.get((chat, uid), False):
-            try:
-                msgs = []
-                async for msg in m.client.iter_messages(chat, limit=100):
-                    if msg.text:
-                        msgs.append(msg.text)
-
-                if not msgs:
-                    await asyncio.sleep(4)
-                    continue
-
-                text = random.choice(msgs)
-
-                await m.client.send_message(chat, text, reply_to=uid)
-                await asyncio.sleep(4)
-
-            except Exception:
-                await asyncio.sleep(4)
+        self.running[key] = False
+        await m.edit(f"🛑 Остановлено для {user.first_name}")
