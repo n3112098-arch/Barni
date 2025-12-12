@@ -33,7 +33,7 @@ class AutoReply(loader.Module):
             return await m.edit("⚠️ Уже включено для этого пользователя.")
 
         self.targets[chat].add(user.id)
-        await m.edit(f"🤖 Теперь я буду отвечать {user.first_name} когда он пишет.")
+        await m.edit(f"🤖 Автоответ для {user.first_name} включен.")
 
     @loader.command()
     async def repstop(self, m):
