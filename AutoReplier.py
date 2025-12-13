@@ -1,42 +1,71 @@
-
+# meta developer: @B_Mods
 from .. import loader, utils
 import random
 
+
+@loader.tds
 class AutoReply(loader.Module):
-    """Автоответчик: отвечает только тогда когда пользователь пишет 
-    Разработчик:@B_Mods"""
+    """Автоответчик — отвечает только когда пользователь пишет"""
     strings = {"name": "AutoReply"}
 
     async def client_ready(self, client, db):
         self.client = client
-        self.targets = {}        # user_id -> True
-        self.counters = {}       # user_id -> msg count
+        self.targets = {}    # user_id -> counter
 
-    async def repcmd(self, m):
-        """ @user — включить автоответ"""
-        user = await utils.get_user(m)
-        if not user:
-            return await m.edit("❌ Укажи пользователя")
+    # ========= ВКЛЮЧИТЬ =========
+    @loader.command()
+    async def rep(self, m):
+        """ .rep <@user | reply> — включить автоответ """
+        user = None
 
-        if user.bot:
-            return await m.edit("❌ Ботам не отвечаю")
+        if m.is_reply:
+            reply = await m.get_reply_message()
+            user = await reply.get_sender()
+        else:
+            args = utils.get_args_raw(m)
+            if not args:
+                return await m.edit("❌ Укажи пользователя или ответь на сообщение")
+            try:
+                user = await m.client.get_entity(args)
+            except:
+                return await m.edit("❌ Пользователь не найден")
 
-        self.targets[user.id] = True
-        self.counters[user.id] = 0
-        await m.edit(f"✅ Теперь отвечаю **{user.first_name}**")
+        if not user or user.bot:
+            return await m.edit("❌ Ботам нельзя")
 
-    async def repstopcmd(self, m):
-        """ @user — остановить"""
-        user = await utils.get_user(m)
-        if not user:
-            return await m.edit("❌ Укажи пользователя")
+        if user.id == (await m.client.get_me()).id:
+            return await m.edit("❌ Нельзя отвечать самому себе")
 
-        self.targets.pop(user.id, None)
-        self.counters.pop(user.id, None)
-        await m.edit(f"🛑 Остановлено для **{user.first_name}**")
+        self.targets[user.id] = 0
+        await m.edit(f"✅ Автоответ включён для **{user.first_name}**")
 
+    # ========= ВЫКЛЮЧИТЬ =========
+    @loader.command()
+    async def repstop(self, m):
+        """ .repstop <@user | reply> — выключить автоответ """
+        user = None
+
+        if m.is_reply:
+            reply = await m.get_reply_message()
+            user = await reply.get_sender()
+        else:
+            args = utils.get_args_raw(m)
+            if not args:
+                return await m.edit("❌ Укажи пользователя или ответь на сообщение")
+            try:
+                user = await m.client.get_entity(args)
+            except:
+                return await m.edit("❌ Пользователь не найден")
+
+        if user and user.id in self.targets:
+            self.targets.pop(user.id)
+            return await m.edit(f"🛑 Автоответ отключён для **{user.first_name}**")
+
+        await m.edit("ℹ️ Для этого пользователя автоответ не был включён")
+
+    # ========= ЛОВИМ СООБЩЕНИЯ =========
     async def watcher(self, m):
-        if not m.sender_id or not m.chat:
+        if not m or not m.sender_id or not m.chat:
             return
 
         uid = m.sender_id
@@ -45,47 +74,35 @@ class AutoReply(loader.Module):
             return
 
         sender = await m.get_sender()
-        if sender.bot:
+        if not sender or sender.bot:
             return
 
-        # Если ответили реплаем — отвечаем всегда
+        # если пользователь ответил тебе — отвечаем всегда
         must_reply = m.is_reply
 
-        # Счётчик сообщений
-        self.counters[uid] += 1
-
-        # Если не реплай — отвечаем через 1–3 сообщений
+        self.targets[uid] += 1
         limit = random.randint(1, 3)
 
-        if not must_reply and self.counters[uid] < limit:
+        if not must_reply and self.targets[uid] < limit:
             return
 
-        # Сброс счётчика
-        self.counters[uid] = 0
+        self.targets[uid] = 0
 
-        # Берём текст ТОЛЬКО от людей (не ботов)
+        # Берём старые сообщения ТОЛЬКО от людей
         try:
-            msgs = await self.client.get_messages(m.chat_id, limit=100)
-            texts = []
-
-            for msg in msgs:
-                if (
-                    msg.text
-                    and msg.sender
-                    and not msg.sender.bot
-                    and msg.sender_id != uid
-                ):
-                    texts.append(msg.text)
+            msgs = await m.client.get_messages(m.chat_id, limit=100)
+            texts = [
+                msg.text for msg in msgs
+                if msg.text
+                and msg.sender
+                and not msg.sender.bot
+                and msg.sender_id != uid
+            ]
 
             if not texts:
                 return
 
-            reply_text = random.choice(texts)
+            await m.reply(random.choice(texts))
 
-        except:
-            return
-
-        try:
-            await m.reply(reply_text)
         except:
             pass
