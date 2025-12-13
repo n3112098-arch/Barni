@@ -1,92 +1,91 @@
-# Developed by @B_Mods
+
 from .. import loader, utils
 import random
 
 class AutoReply(loader.Module):
-    """Автоответчик: отвечает только когда пользователь пишет
-    Разработчик: @B_Mods"""
-
+    """Автоответчик: отвечает только тогда когла пользователь пишет 
+    Разработчик:@B_Mods"""
     strings = {"name": "AutoReply"}
 
-    def __init__(self):
-        self.targets = {}  # chat_id: set(user_ids)
+    async def client_ready(self, client, db):
+        self.client = client
+        self.targets = {}        # user_id -> True
+        self.counters = {}       # user_id -> msg count
 
-    @loader.command()
-    async def rep(self, m):
-        """
-        @user — включить автоответ пользователю
-        """
-        args = utils.get_args_raw(m)
-        if not args:
-            return await m.edit("Укажи пользователя: `.rep @username`")
+    async def repcmd(self, m):
+        """ @user — включить автоответ"""
+        user = await utils.get_user(m)
+        if not user:
+            return await m.edit("❌ Укажи пользователя")
 
-        try:
-            user = await m.client.get_entity(args)
-        except:
-            return await m.edit("❌ Не удалось получить пользователя")
+        if user.bot:
+            return await m.edit("❌ Ботам не отвечаю")
 
-        chat = m.chat_id
+        self.targets[user.id] = True
+        self.counters[user.id] = 0
+        await m.edit(f"✅ Теперь отвечаю **{user.first_name}**")
 
-        if chat not in self.targets:
-            self.targets[chat] = set()
+    async def repstopcmd(self, m):
+        """ @user — остановить"""
+        user = await utils.get_user(m)
+        if not user:
+            return await m.edit("❌ Укажи пользователя")
 
-        if user.id in self.targets[chat]:
-            return await m.edit("⚠️ Уже включено для этого пользователя.")
-
-        self.targets[chat].add(user.id)
-        await m.edit(f"🤖 Авто - отвечик для {user.first_name} включён.")
-
-    @loader.command()
-    async def repstop(self, m):
-        """
-         @user — выключить автоответчик
-        """
-        args = utils.get_args_raw(m)
-        if not args:
-            return await m.edit("Укажи пользователя: `.repstop @username`")
-
-        try:
-            user = await m.client.get_entity(args)
-        except:
-            return await m.edit("❌ Не удалось получить пользователя")
-
-        chat = m.chat_id
-
-        if chat in self.targets and user.id in self.targets[chat]:
-            self.targets[chat].remove(user.id)
-            return await m.edit(f"🛑 Больше не отвечаю {user.first_name}")
-
-        await m.edit("⚠️ Этот пользователь не был активирован.")
+        self.targets.pop(user.id, None)
+        self.counters.pop(user.id, None)
+        await m.edit(f"🛑 Остановлено для **{user.first_name}**")
 
     async def watcher(self, m):
-        """
-        Срабатывает каждый раз когда кто-то пишет сообщение
-        """
-        if not m or not m.chat or not m.sender_id:
+        if not m.sender_id or not m.chat:
             return
 
-        chat = m.chat_id
         uid = m.sender_id
 
-        if chat not in self.targets:
+        if uid not in self.targets:
             return
 
-        if uid not in self.targets[chat]:
+        sender = await m.get_sender()
+        if sender.bot:
             return
 
-        # Берём 150 прошлых сообщений
-        texts = []
-        async for msg in m.client.iter_messages(chat, limit=150):
-            if msg.text:
-                texts.append(msg.text)
+        # Если ответили реплаем — отвечаем всегда
+        must_reply = m.is_reply
 
-        if not texts:
+        # Счётчик сообщений
+        self.counters[uid] += 1
+
+        # Если не реплай — отвечаем через 1–3 сообщений
+        limit = random.randint(1, 3)
+
+        if not must_reply and self.counters[uid] < limit:
             return
 
-        reply_text = random.choice(texts)
+        # Сброс счётчика
+        self.counters[uid] = 0
+
+        # Берём текст ТОЛЬКО от людей (не ботов)
+        try:
+            msgs = await self.client.get_messages(m.chat_id, limit=100)
+            texts = []
+
+            for msg in msgs:
+                if (
+                    msg.text
+                    and msg.sender
+                    and not msg.sender.bot
+                    and msg.sender_id != uid
+                ):
+                    texts.append(msg.text)
+
+            if not texts:
+                return
+
+            reply_text = random.choice(texts)
+
+        except:
+            return
 
         try:
-            # !!! Ответ именно reply !!!
             await m.reply(reply_text)
         except:
             pass
