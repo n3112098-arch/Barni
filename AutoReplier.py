@@ -5,7 +5,8 @@ import random
 
 @loader.tds
 class AutoReply(loader.Module):
-    """Автоответчик — отвечает только когда пользователь пишет"""
+    """Автоответчик — отвечает только когда пользователь пишет
+    Разработчик:@B_Mods"""
     strings = {"name": "AutoReply"}
 
     async def client_ready(self, client, db):
@@ -15,7 +16,7 @@ class AutoReply(loader.Module):
     # ========= ВКЛЮЧИТЬ =========
     @loader.command()
     async def rep(self, m):
-        """ .rep <@user | reply> — включить автоответ """
+        """ <@user | reply> — включить автоответ """
         user = None
 
         if m.is_reply:
@@ -42,7 +43,7 @@ class AutoReply(loader.Module):
     # ========= ВЫКЛЮЧИТЬ =========
     @loader.command()
     async def repstop(self, m):
-        """ .repstop <@user | reply> — выключить автоответ """
+        """ <@user | reply> — выключить автоответ """
         user = None
 
         if m.is_reply:
@@ -59,7 +60,7 @@ class AutoReply(loader.Module):
 
         if user and user.id in self.targets:
             self.targets.pop(user.id)
-            return await m.edit(f"🛑 Автоответ отключён для **{user.first_name}**")
+            return await m.edit(f"🛑 Автоответ отключён для {user.first_name}")
 
         await m.edit("ℹ️ Для этого пользователя автоответ не был включён")
 
