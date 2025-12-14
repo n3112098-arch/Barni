@@ -38,7 +38,7 @@ class AutoReply(loader.Module):
             return await m.edit("❌ Нельзя отвечать самому себе")
 
         self.targets[user.id] = 0
-        await m.edit(f"✅ Автоответ включён для **{user.first_name}**")
+        await m.edit(f"✅ Автоответ включён для {user.first_name}")
 
     # ========= ВЫКЛЮЧИТЬ =========
     @loader.command()
