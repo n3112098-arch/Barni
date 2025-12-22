@@ -19,7 +19,7 @@ class ChatUnivers(loader.Module):
 
     @loader.command()
     async def sf(self, m):
-        """Сохранить ВСЕ пересланные сообщения"""
+        """Сохранить все пересланные сообщения"""
         self.stop_all = False
         await m.edit("🔍 Ищу пересланные сообщения...")
         count = 0
@@ -102,7 +102,7 @@ class ChatUnivers(loader.Module):
 
     @loader.command()
     async def sstop(self, m):
-        """Остановить ВСЕ действия"""
+        """Остановить все действия"""
         self.stop_all = True
         self.auto_forward = False
         await m.edit("🛑 Все операции остановлены")
