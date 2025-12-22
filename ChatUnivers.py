@@ -13,16 +13,21 @@ class ChatUnivers(loader.Module):
         self.client = client
         self.db = db
         self.auto_forward = False
+        self.stop_all = False
 
     # ===== ПЕРЕСЛАННЫЕ =====
 
     @loader.command()
     async def sf(self, m):
-        """Сохранить ВСЕ пересланные сообщения в Избранные"""
+        """Сохранить ВСЕ пересланные сообщения"""
+        self.stop_all = False
         await m.edit("🔍 Ищу пересланные сообщения...")
         count = 0
 
         async for msg in self.client.iter_messages(m.chat_id):
+            if self.stop_all:
+                return await m.edit("⛔ Операция остановлена")
+
             if msg.fwd_from:
                 await self.client.send_message("me", msg)
                 count += 1
@@ -32,9 +37,10 @@ class ChatUnivers(loader.Module):
 
     @loader.command()
     async def sfon(self, m):
-        """Автосохранение новых пересланных"""
+        """Включить автосохранение пересланных"""
         self.auto_forward = True
-        await m.edit("🟢 Автосохранение пересланных включено")
+        self.stop_all = False
+        await m.edit("🟢 Автосохранение включено")
 
     @loader.command()
     async def sfoff(self, m):
@@ -64,13 +70,15 @@ class ChatUnivers(loader.Module):
         """Сохранить все КРУЖКИ"""
         await self._save_media(m, "round")
 
-    # ===== ВНУТРЕННЕЕ =====
-
     async def _save_media(self, m, mode):
+        self.stop_all = False
         await m.edit("⏳ Сканирую сообщения...")
         count = 0
 
         async for msg in self.client.iter_messages(m.chat_id):
+            if self.stop_all:
+                return await m.edit("⛔ Операция остановлена")
+
             try:
                 if mode == "photo" and msg.photo:
                     await self.client.send_message("me", msg)
@@ -90,10 +98,19 @@ class ChatUnivers(loader.Module):
 
         await m.edit(f"✅ Сохранено: {count}")
 
+    # ===== СТОП ВСЕГО =====
+
+    @loader.command()
+    async def sstop(self, m):
+        """Остановить ВСЕ действия"""
+        self.stop_all = True
+        self.auto_forward = False
+        await m.edit("🛑 Все операции остановлены")
+
     # ===== WATCHER =====
 
     async def watcher(self, m: Message):
-        if not self.auto_forward:
+        if self.stop_all or not self.auto_forward:
             return
 
         if m.fwd_from:
