@@ -1,92 +1,100 @@
 from .. import loader, utils
 import asyncio
+from telethon.errors import FloodWaitError
 
+
+@loader.tds
 class DelSel(loader.Module):
-    """Удаление своих и выбранных сообщений пользователей"""
+    """Удаление своих сообщений + автоудаление сообщений пользователей (ускоренная версия)"""
 
     strings = {"name": "DelSel"}
 
-    def __init__(self):
-        self._del_targets = {}  # чат: {user_ids}
+    async def client_ready(self, client, db):
+        self.client = client
+        self._del_targets = {}
 
     @loader.command()
     async def dsms(self, m):
-        """Удалить все свои сообщения в этом чате"""
-        me = await m.client.get_me()
+        """Удалить ВСЕ свои сообщения в этом чате (быстро)"""
+        me = await self.client.get_me()
+        chat_id = m.chat_id
 
-        await m.edit("🗑 Начинаю удаление ваших сообщений...")
+        await m.edit("🗑 Быстро удаляю свои сообщения...")
 
         deleted = 0
+        batch = 0
 
-        async for msg in m.client.iter_messages(m.chat_id):
-            if msg.sender_id == me.id:
-                try:
-                    await msg.delete()
-                    deleted += 1
-                    await asyncio.sleep(0.05)
-                except:
-                    pass
+        async for msg in self.client.iter_messages(chat_id):
+            if msg.sender_id != me.id:
+                continue
 
-        await m.edit(f"✔️ Удалено сообщений: {deleted}")
+            try:
+                await msg.delete()
+                deleted += 1
+                batch += 1
+
+                # микропауза каждые 15 сообщений
+                if batch >= 15:
+                    batch = 0
+                    await asyncio.sleep(0.2)
+
+            except FloodWaitError as e:
+                await asyncio.sleep(e.seconds)
+            except:
+                pass
+
+        await m.client.send_message(chat_id, f"✔️ Удалено сообщений: {deleted}")
 
     @loader.command()
     async def delusr(self, m):
         """
-        @user — удаляет все новые сообщения этого пользователя
-        Работает только при наличии прав администратора.
+        .delusr @user — удаляет все НОВЫЕ сообщения пользователя
+        (нужно быть админом)
         """
         if not m.chat:
-            return await m.edit("❌ Команда работает только в группах.")
+            return await m.edit("❌ Только в группах")
 
-        args = utils.get_args_raw(m)
-        if not args:
-            return await m.edit("Укажи пользователя: `.delusr @username`")
+        user = await utils.get_user(m)
+        if not user:
+            return await m.edit("❌ Укажи пользователя")
 
-        try:
-            ent = await m.client.get_entity(args)
-        except:
-            return await m.edit("❌ Не удалось получить пользователя.")
+        chat_id = m.chat_id
+        self._del_targets.setdefault(chat_id, set()).add(user.id)
 
-        uid = ent.id
-        chat = m.chat_id
-
-        self._del_targets.setdefault(chat, set()).add(uid)
-
-        await m.edit(f"🛑 Теперь все новые сообщения от {ent.first_name} будут удаляться.")
+        await m.edit(f"🗑 Теперь сообщения **{user.first_name}** будут удаляться")
 
     @loader.command()
     async def undelusr(self, m):
-        """
-        @user — отключает удаление сообщений этого пользователя
-        """
-        args = utils.get_args_raw(m)
-        if not args:
-            return await m.edit("Укажи пользователя: `@username`")
+        """Отключить автоудаление сообщений пользователя"""
+        user = await utils.get_user(m)
+        if not user:
+            return await m.edit("❌ Укажи пользователя")
 
-        try:
-            ent = await m.client.get_entity(args)
-        except:
-            return await m.edit("❌ Не удалось получить пользователя.")
+        chat_id = m.chat_id
 
-        uid = ent.id
-        chat = m.chat_id
+        if chat_id in self._del_targets and user.id in self._del_targets[chat_id]:
+            self._del_targets[chat_id].remove(user.id)
+            return await m.edit(f"🟢 Удаление сообщений **{user.first_name}** отключено")
 
-        if chat in self._del_targets and uid in self._del_targets[chat]:
-            self._del_targets[chat].remove(uid)
-            return await m.edit(f"🟩 Удаление сообщений {ent.first_name} выключено.")
-
-        await m.edit("❗ Этот пользователь не был включён ранее.")
+        await m.edit("⚠️ Этот пользователь не был в списке")
 
     async def watcher(self, m):
-        """Автоматическое удаление новых сообщений выбранных пользователей"""
+        """Автоудаление новых сообщений"""
         if not m or not m.chat or not m.sender_id:
             return
 
-        chat = m.chat_id
-        sender = m.sender_id
+        chat_id = m.chat_id
+        sender_id = m.sender_id
 
-        if chat in self._del_targets and sender in self._del_targets[chat]:
-            try:
-                await m.delete()
-            except:
-                pass
+        if chat_id not in self._del_targets:
+            return
+
+        if sender_id not in self._del_targets[chat_id]:
+            return
+
+        try:
+            await m.delete()
+        except FloodWaitError as e:
+            await asyncio.sleep(e.seconds)
+        except:
+            pass
