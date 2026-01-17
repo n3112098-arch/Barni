@@ -3,7 +3,7 @@ from .. import loader, utils
 import random
 import asyncio
 
-AI_BOT = "@chatgpt_karfly_bot"
+AI_BOT = "@jadvebot"
 
 SYSTEM_PROMPT = (
     "Отвечай как живой человек. "
