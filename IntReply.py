@@ -53,7 +53,7 @@ class IntReplayer(loader.Module):
         if sender.bot:
             return
 
-        bot = "gigachat_bot"
+        bot = "neirohambot"
         user_text = m.text.strip()
 
         # отправляем текст боту
@@ -61,7 +61,7 @@ class IntReplayer(loader.Module):
         await self.client.send_message(bot, user_text)
 
         # ждём 3.5 сек
-        await asyncio.sleep(8.5)
+        await asyncio.sleep(3.5)
 
         # читаем несколько сообщений, а не одно
         msgs = await self.client.get_messages(bot, limit=5)
