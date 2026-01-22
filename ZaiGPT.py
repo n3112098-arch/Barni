@@ -75,7 +75,7 @@ class intReplayer(loader.Module):
             "📌 <b>Запрос:</b>\n"
             f"<blockquote>{utils.escape_html(query)}</blockquote>\n\n"
             "🤖 <b>Ответ AI:</b>\n"
-            f"<blockquote>{utils.escape_html(last_text)}</blockquote>"
+            f"<blockquote>{last_text}</blockquote>"
         )
 
         await status_msg.edit(final_text)
