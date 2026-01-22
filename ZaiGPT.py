@@ -46,7 +46,7 @@ class intReplayer(loader.Module):
         last_time = None
 
         # 4️⃣ Ждём ответы бота
-        for _ in range(20):  # ~20 секунд максимум
+        for _ in range(580):  # ~580 секунд максимум
             await asyncio.sleep(1)
 
             msgs = await self.client.get_messages(self.bot, limit=5)
