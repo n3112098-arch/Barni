@@ -1,64 +1,54 @@
 # meta developer: @B_Mods
-# meta desc: AI module (onlysq OpenAI compatible)
+# meta desc: Gemini 3 Pro via onlysq (Termux compatible)
 # meta version: 1.0
 
-from openai import OpenAI
+import aiohttp
 from .. import loader, utils
 
 
+API_KEY = "openai"  # ← вставь ключ (или любой, если onlysq не проверяет)
+API_URL = "https://api.onlysq.ru/ai/openai/v1/chat/completions"
+MODEL = "gemini-3-pro-preview"
+
+
 @loader.tds
-class OnlySQAI(loader.Module):
-    """AI через onlysq OpenAI API"""
+class GeminiTermux(loader.Module):
+    """Gemini 3 Pro (onlysq, Termux)"""
 
     strings = {
-        "name": "OnlySQAI",
-        "no_text": "❌ Введите текст после команды",
+        "name": "GeminiTermux",
+        "no_text": "❌ Напиши текст после команды",
         "error": "⚠️ Ошибка:\n{}",
     }
 
-    def __init__(self):
-        self.config = loader.ModuleConfig(
-            loader.ConfigValue(
-                "API_KEY",
-                "",
-                "API ключ (любой, если onlysq не проверяет)",
-                validator=loader.validators.String(),
-            ),
-            loader.ConfigValue(
-                "BASE_URL",
-                "https://api.onlysq.ru/ai/openai",
-                "Base URL API",
-                validator=loader.validators.String(),
-            ),
-            loader.ConfigValue(
-                "MODEL",
-                "gpt-4o-mini",
-                "Модель",
-                validator=loader.validators.String(),
-            ),
-        )
-
     @loader.command()
-    async def ai(self, message):
-        """Использование: .ai <вопрос>"""
+    async def gemini(self, message):
         text = utils.get_args_raw(message)
         if not text:
             return await message.edit(self.strings["no_text"])
 
-        await message.edit("🤖 Думаю...")
+        await message.edit("🧠 Gemini думает...")
+
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "model": MODEL,
+            "messages": [
+                {"role": "user", "content": text}
+            ],
+            "temperature": 0.7,
+        }
 
         try:
-            client = OpenAI(
-                api_key=self.config["API_KEY"],
-                base_url=self.config["BASE_URL"],
-            )
+            async with aiohttp.ClientSession() as session:
+                async with session.post(API_URL, json=payload, headers=headers) as r:
+                    data = await r.json()
 
-            response = client.responses.create(
-                model=self.config["MODEL"],
-                input=text,
-            )
-
-            await message.edit(response.output_text)
+            answer = data["choices"][0]["message"]["content"]
+            await message.edit(answer)
 
         except Exception as e:
             await message.edit(self.strings["error"].format(e))
