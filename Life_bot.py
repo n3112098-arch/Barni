@@ -5,7 +5,7 @@ from keep_alive import keep_alive
 
 # Настройка бота
 TOKEN = 'ВАШ_ТОКЕН'
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(8233581401:AAEHu3HG43lct3P4jccHksIREcGRVD3rHzg)
 
 # "База данных" (в памяти Replit)
 users = {}
