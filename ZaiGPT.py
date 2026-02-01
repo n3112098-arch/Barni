@@ -29,9 +29,9 @@ class intReplayer(loader.Module):
 
         # 1️⃣ Публикуем сообщение-заглушку
         status_msg = await m.respond(
-            "📌 <b>Запрос:</b>\n"
+            "📌 Запрос:\n"
             f"<blockquote>{utils.escape_html(query)}</blockquote>\n\n"
-            "🤖 <b>Ответ AI:</b>\n"
+            "🤖 Ответ AI:\n"
             "<blockquote>Обрабатываю ваш запрос… ⏳</blockquote>"
         )
 
