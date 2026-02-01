@@ -29,9 +29,9 @@ class intReplayer(loader.Module):
 
         # 1️⃣ Публикуем сообщение-заглушку
         status_msg = await m.respond(
-            "📌 <b>Запрос:</b>\n"
+            "📌 Запрос:"
             f"<blockquote>{utils.escape_html(query)}</blockquote>\n\n"
-            "🤖 <b>Ответ AI:</b>\n"
+            "🤖 Ответ AI:"
             "<blockquote>Обрабатываю ваш запрос… ⏳</blockquote>"
         )
 
@@ -72,9 +72,9 @@ class intReplayer(loader.Module):
 
         # 5️⃣ РЕДАКТИРУЕМ сообщение (а не отправляем новое)
         final_text = (
-            "📌 <b>Запрос:</b>\n"
+            "📌 Запрос:"
             f"<blockquote>{utils.escape_html(query)}</blockquote>\n\n"
-            "🤖 <b>Ответ AI:</b>\n"
+            "🤖 Ответ AI:"
             f"<blockquote>{utils.escape_html(last_text)}</blockquote>"
         )
 
