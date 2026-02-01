@@ -7,6 +7,9 @@ class intReplayer(loader.Module):
     """
     GPT-модуль через @ZettaGPT4o_bot
     Использование: .zai <запрос> или реплай + .zai
+
+    ⚠️ Бота нужно предварительно настроить вручную
+    @B_Mods
     """
     strings = {"name": "zaiGpt"}
 
@@ -24,7 +27,7 @@ class intReplayer(loader.Module):
         if not query:
             return await m.edit("❌ Укажи запрос")
 
-        # 1️⃣ Публикуем сообщение-заглушку с цитатой
+        # 1️⃣ Публикуем сообщение-заглушку
         status_msg = await m.respond(
             "📌 <b>Запрос:</b>\n"
             f"<blockquote>{utils.escape_html(query)}</blockquote>\n\n"
@@ -32,7 +35,7 @@ class intReplayer(loader.Module):
             "<blockquote>Обрабатываю ваш запрос… ⏳</blockquote>"
         )
 
-        # 2️⃣ Запоминаем последнее сообщение бота
+        # 2️⃣ Запоминаем последнее сообщение бота ДО запроса
         old = await self.client.get_messages(self.bot, limit=1)
         last_id = old[0].id if old else 0
 
@@ -43,8 +46,9 @@ class intReplayer(loader.Module):
         last_time = None
 
         # 4️⃣ Ждём ответы бота
-        for _ in range(20): 
+        for _ in range(20):  # ~20 секунд максимум
             await asyncio.sleep(1)
+
             msgs = await self.client.get_messages(self.bot, limit=5)
 
             new = [
@@ -56,14 +60,17 @@ class intReplayer(loader.Module):
                 last_text = new[0].text
                 last_time = time.time()
 
+            # 🛑 КЛЮЧЕВАЯ ЛОГИКА ОСТАНОВКИ
+            # если бот замолчал — значит ответ закончен
             if last_text and time.time() - last_time >= 2.5:
                 break
 
         if not last_text:
-            return await status_msg.edit("❌ Бот не прислал ответ")
+            return await status_msg.edit(
+                "❌ Бот не прислал ответ"
+            )
 
-        # 5️⃣ ФОРМАТИРОВАНИЕ (Добавлена вложенная цитата для ответа)
-        # Чтобы ответ выглядел как на 1-м скрине, оборачиваем текст в blockquote
+        # 5️⃣ РЕДАКТИРУЕМ сообщение (а не отправляем новое)
         final_text = (
             "📌 <b>Запрос:</b>\n"
             f"<blockquote>{utils.escape_html(query)}</blockquote>\n\n"
@@ -72,8 +79,4 @@ class intReplayer(loader.Module):
         )
 
         await status_msg.edit(final_text)
-        try:
-            await m.delete()
-        except:
-            pass
-            
+        await m.delete()
